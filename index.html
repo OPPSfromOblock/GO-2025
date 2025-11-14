@@ -1202,7 +1202,12 @@ document.querySelectorAll('#bottomTabs button').forEach(btn=>{
 });
 
 window.addEventListener('hashchange', ()=> showTab((location.hash||'').replace('#','')));
-showTab((location.hash||'').replace('#',''));
+if (!location.hash) {
+    showTab('home');
+} else {
+    showTab(location.hash.replace('#',''));
+}
+
 
 /* Render Live Matches */
 function renderLive(matches = []) {
