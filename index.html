@@ -6,7 +6,8 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>GO 2025 - Thunder Edition (Gurukul Olympics Prototype)</title>
 <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js">window.addEventListener('beforeunload',()=>auth.signOut());
+</script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <style>
@@ -1041,7 +1042,7 @@ function formatMatchBadge(m){
     if(!loader) { if(pw) pw.style.display='flex'; return; }
     loader.style.transition = 'opacity 0.9s ease';
     loader.style.opacity = '0';
-    setTimeout(() => { try{ loader.remove(); }catch(e){} if(pw) pw.style.display='flex'; if(appEl) appEl.style.display='none'; }, 900);
+    setTimeout(() => { try{ loader.remove(); }catch(e){} if(pw) pw.style.display='flex'; if(appEl) appEl.style.display='block'; }, 900);
   }
 
   if(!loader || !img){ setTimeout(()=>{ if(pw) pw.style.display='flex'; }, 500); return; }
