@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>GO 2025 - Thunder Edition (Gurukul Olympics Prototype)</title>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<style>
+    /* Detailed Scoresheet Modal */
+#detailed-scoresheet {
+  display: none;
+  position: fixed;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #330000;
+  border: 2px solid #ff6f00;
+  padding: 20px;
+  border-radius: 15px;
+  width: 320px;
+  z-index: 1000;
+  box-shadow: 0 0 15px #ff6f00, 0 0 40px #ff6f00 inset;
+  color: #eee;
+  font-family: 'Arial', sans-serif;
+}
+
+#detailed-scoresheet h2 {
+  margin-bottom: 15px;
+  color: #ff6f00;
+  text-shadow: 0 0 3px #ff6f00;
+}
+
+#detailed-scoresheet p {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+#scoresheet-close {
+  position: absolute;
+  cursor: pointer;
+  right: 10px;
+  top: 10px;
+  font-size: 22px;
+  color: #ff6f00;
+  user-select: none;
+  transition: color 0.3s ease;
+}
+
+#scoresheet-close:hover {
+  color: #fff;
+}
+
+/* Backdrop for modal */
+#modal-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.75);
+  z-index: 900;
+}
+
+/* Completed Matches List */
+#completed-matches {
+  background: #220000;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 15px #ff6f00 inset;
+  max-width: 480px;
+  margin: 20px auto 60px auto;
+  color: #eee;
+  font-family: 'Arial', sans-serif;
+}
+
+#completed-matches h3 {
+  margin-bottom: 15px;
+  color: #ffa500;
+  text-align: center;
+  text-shadow: 0 0 5px #ffa500, 0 0 15px #ff6f00;
+}
+
+.completed-match-card {
+  border: 1.3px solid #ff6f00;
+  border-radius: 10px;
+  padding: 12px 15px;
+  box-shadow: 0 0 10px #ff6f00 inset;
+  margin-bottom: 12px;
+  background: #330000;
+  color: #fff;
+  font-weight: 600;
+  user-select: none;
+  line-height: 1.2;
+  font-size: 14px;
+}
+
+.winner {
+  color: #ffd700;
+  font-weight: 700;
+}
+
+.scoreline {
+  margin-top: 4px;
+  font-style: italic;
+  color: #ffa500;
+}
+    /* Reset */
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body,#app{height:100%}
+    body{
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: #080408;
+      color:#fff;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      overflow:hidden;
+    }
+
+    /* Thunder theme colors */
+    :root{
+      --thunder-red: #ff1e1e;
+      --thunder-orange: #ff7b00;
+      --accent-grad: linear-gradient(90deg,var(--thunder-orange),var(--thunder-red));
+      --panel: rgba(255,255,255,0.03);
+      --glass: rgba(255,255,255,0.03);
+      --neon: linear-gradient(90deg,var(--thunder-orange),var(--thunder-red),#ff66a3);
+    }
+
+    /* Animated background layers */
+    .bg{
+      position:fixed;inset:0;z-index:0;overflow:hidden;
+      background: radial-gradient(ellipse at 10% 20%, rgba(255,123,0,0.06) 0%, transparent 20%),
+                  radial-gradient(ellipse at 90% 80%, rgba(255,30,30,0.05) 0%, transparent 25%),
+                  linear-gradient(180deg,#050305 0%, #080408 100%);
+    }
+    .wave{
+      position:absolute;left:-30%;width:160%;height:140%;
+      background: linear-gradient(90deg, rgba(255,123,0,0.08), rgba(255,30,30,0.09), rgba(255,123,0,0.06));
+      filter: blur(36px) saturate(140%);
+      transform: rotate(-12deg);
+      animation: waveMove 20s linear infinite;
+      opacity:0.9;
+      mix-blend-mode:screen;
+    }
+    .wave.w2{top:-10%;animation-duration:28s;opacity:0.7;filter:blur(56px) saturate(160%);transform:rotate(6deg)}
+    .wave.w3{top:20%;animation-duration:34s;opacity:0.5;filter:blur(86px) saturate(120%);transform:rotate(-20deg)}
+    @keyframes waveMove{
+      0%{transform:translateX(-10%) rotate(-12deg)}
+      50%{transform:translateX(8%) rotate(-8deg)}
+      100%{transform:translateX(-10%) rotate(-12deg)}
+    }
+
+    .app-wrap{display:flex;height:100vh;width:100vw;position:relative}
+    .sidebar{background: linear-gradient(180deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6)); 
+      width:260px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-right:1px solid rgba(255,255,255,0.03);padding:18px;backdrop-filter: blur(6px);
+      display:flex;flex-direction:column;gap:14px;
+      box-shadow: 8px 0 40px rgba(17,0,0,0.45);
+    }
+    .logo{height:68px;display:flex;align-items:center;gap:12px}
+    .logo img{height:56px; width:auto; filter: drop-shadow(0 8px 18px rgba(255,123,0,0.12));}
+    .title{font-weight:800;font-size:18px;color:var(--thunder-orange);letter-spacing:0.6px}
+
+    .nav{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+    .nav button{
+      background:transparent;border:0;color:#fff;padding:12px;border-radius:10px;text-align:left;
+      font-weight:700;cursor:pointer;transition:all .18s ease;font-size:15px;
+    }
+    .nav button.active{
+      background: linear-gradient(90deg, rgba(255,123,0,0.12), rgba(255,30,30,0.06));
+      box-shadow: 0 6px 18px rgba(255,30,30,0.06);
+      color:var(--thunder-orange);
+    }
+
+    .grow{flex:1;display:flex;align-items:flex-end;gap:10px}
+    .pill{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px}
+
+    .main{
+      flex:1;padding:28px;position:relative;overflow:auto;
+      display:flex;flex-direction:column;gap:18px;
+    }
+
+    .header-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .search{
+      background:var(--glass);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02);
+      min-width:260px;color:#ddd;font-weight:600
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px;padding:18px;border:1px solid rgba(255,255,255,0.03);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.55);
+    }
+
+    .stats{display:flex;gap:12px;flex-wrap:wrap}
+    .stat{
+      padding:14px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+      min-width:160px;flex:1;
+    }
+    .stat .num{font-size:28px;font-weight:900;color:var(--thunder-red)}
+    .stat .label{opacity:0.8;margin-top:6px;font-weight:700;color:#ddd}
+
+    /* Segmented buttons */
+    .seg{display:flex;gap:8px;flex-wrap:wrap}
+    .seg button{padding:8px 12px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff;font-weight:800;cursor:pointer}
+    .seg button.active{background:var(--accent-grad);color:#111}
+
+    /* Option tiles */
+    .big-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .big-card{display:flex;align-items:center;justify-content:center;height:120px;border-radius:14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);font-weight:900;font-size:20px;cursor:pointer}
+    .big-card:hover{background:rgba(255,255,255,0.08)}
+
+    /* Bracket and matches */
+    .bracket{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+    .match{padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);cursor:default}
+    .match.clickable{cursor:pointer;outline:1px dashed rgba(255,255,255,0.1)}
+    .match .teams{display:flex;flex-direction:column;gap:6px}
+    .team{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.03)}
+    .badge{padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.08);font-size:12px;font-weight:800}
+    .badge.live{background:linear-gradient(90deg,#ff7b00,#ff1e1e);color:#111}
+    .badge.done{background:rgba(60,200,120,0.85);color:#111}
+
+    /* Bracket tree */
+    .bracket-scroll{position:relative;overflow-x:auto;padding-bottom:6px}
+    .bracket-tree{display:flex;gap:18px;min-width:640px}
+    .round-col{position:relative;width:220px;min-width:220px}
+    .round-col .match{position:absolute;left:0;right:0;min-height:90px}
+    .spacer{width:100%;}
+    .bracket-svg{position:relative;inset:auto;display:block;width:100%;height:auto}
+    .bracket-conn{stroke:rgba(255,255,255,0.3);stroke-width:2;fill:none}
+
+    /* Scoring modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:1400;background:rgba(8,4,8,0.6);backdrop-filter:blur(6px)}
+    .modal.show{display:flex}
+    .modal .box{width:520px;max-width:92vw;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.06);padding:16px}
+    .row{display:flex;gap:10px;align-items:center}
+    .grow1{flex:1}
+    .btn{padding:8px 12px;border-radius:10px;border:0;background:rgba(255,255,255,0.08);color:#fff;font-weight:800;cursor:pointer}
+    .btn.primary{background:var(--accent-grad);color:#111}
+    .btn.danger{background:#ff3b30}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.12)}
+    .score-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .score-grid .panel{padding:10px;border-radius:10px;background:rgba(255,255,255,0.04)}
+    .num-lg{font-size:28px;font-weight:900}
+
+    /* Neon changing quote */
+    .quote-wrap{display:flex;align-items:center;gap:16px;flex-direction:column;justify-content:center;padding:28px;border-radius:14px}
+    .quote{
+      font-size:26px;font-weight:900;
+      letter-spacing:1px;padding:12px 18px;border-radius:10px;
+      background: linear-gradient(90deg, rgba(255,123,0,0.06), rgba(255,30,30,0.06));
+      box-shadow:0 8px 40px rgba(255,30,30,0.06);
+    }
+    .neon{
+      display:inline-block;padding:6px 10px;border-radius:8px;font-weight:900;
+      color:transparent;background-clip:text;-webkit-background-clip:text;
+      animation:neonPulse 3s linear infinite;
+      background-image: var(--neon);
+    }
+    @keyframes neonPulse{
+      0%{filter:drop-shadow(0 0 2px rgba(255,123,0,0.18))}
+      50%{filter:drop-shadow(0 0 20px rgba(255,30,30,0.32))}
+      100%{filter:drop-shadow(0 0 2px rgba(255,123,0,0.18))}
+    }
+
+/* Guide modal */
+.guide{
+  position:fixed;right:26px;bottom:26px;z-index:60;
+  width:360px;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.4));
+  border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.03);
+  box-shadow:0 24px 60px rgba(0,0,0,0.6);
+}
+.guide h4{color:var(--thunder-orange);margin-bottom:8px}
+.guide p{opacity:0.95;margin-bottom:12px}
+
+/* Tour overlay */
+.tour-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.tour-highlight {
+  position: absolute;
+  border: 3px solid var(--thunder-orange);
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(255, 123, 0, 0.5);
+  pointer-events: none;
+  z-index: 1001;
+}
+
+.tour-modal {
+  background: linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.7));
+  border: 2px solid var(--thunder-orange);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  color: #fff;
+  text-align: center;
+  z-index: 1002;
+  position: relative;
+}
+
+.tour-modal h3 {
+  color: var(--thunder-orange);
+  margin-bottom: 10px;
+}
+
+.tour-modal p {
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.tour-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.tour-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.tour-btn.primary {
+  background: var(--accent-grad);
+  color: #111;
+}
+
+.tour-btn.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+    /* Password overlay */
+    .overlay{
+      position:fixed;inset:0;background:linear-gradient(180deg, rgba(8,4,8,0.72), rgba(4,2,6,0.86));
+      display:flex;align-items:center;justify-content:center;z-index:3000;
+      backdrop-filter: blur(6px);
+    }
+    .pwbox{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:28px;border-radius:16px;width:420px;border:1px solid rgba(255,255,255,0.03);text-align:center}
+    .pwbox h2{color:var(--thunder-orange);margin-bottom:8px}
+    .pwbox input{width:100%;padding:12px;border-radius:10px;border:0;margin-top:10px;font-size:16px;background:rgba(255,255,255,0.03);color:#fff}
+    .pwbox button{margin-top:12px;padding:10px 14px;border-radius:10px;border:0;background:var(--accent-grad);font-weight:900;color:#111;cursor:pointer}
+
+    /* Loading/glitch intro */
+    .loader-wrap{
+      position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:1000;background:linear-gradient(180deg,rgba(4,2,6,0.86), rgba(6,2,8,0.96));
+      flex-direction:column;gap:18px;
+    }
+    .glitch-logo{
+      position:relative;display:flex;align-items:center;gap:12px;
+    }
+    .glitch-logo img{height:110px;filter:drop-shadow(0 18px 40px rgba(255,30,30,0.08))}
+
+    /* Loader extras */
+    .loading-text{font-weight:800;opacity:0.9}
+    .loading-bar{width:320px;height:6px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;box-shadow:0 0 14px rgba(255,30,30,0.12)}
+    .loading-bar-inner{height:100%;width:40%;background:linear-gradient(90deg,var(--thunder-orange),var(--thunder-red));filter:brightness(1.2);animation:loadingSlide 1.8s ease-in-out infinite}
+    @keyframes loadingSlide{0%{transform:translateX(-100%)}50%{transform:translateX(0%)}100%{transform:translateX(100%)}}
+
+    /* Mobile nav */
+    .mobile-toggle{display:none;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);color:#fff;font-size:20px;font-weight:900;cursor:pointer}
+    .mobile-toggle:hover{background:rgba(255,255,255,0.1)}
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;z-index:1100}
+    .backdrop.show{display:block}
+
+    /* Drawer close row (mobile) */
+    .mobile-close{display:none;justify-content:flex-end;margin-bottom:8px}
+
+    /* Bottom tab bar (mobile) */
+    .bottom-tabs{position:fixed;left:0;right:0;bottom:0;display:none;z-index:950;background:rgba(20,20,22,0.92);border-top:1px solid rgba(255,255,255,0.06);padding:6px 8px calc(6px + env(safe-area-inset-bottom)) 8px}
+    .bottom-tabs .tabs-inner{display:flex;gap:6px}
+    .bottom-tabs button{flex:1;padding:10px 8px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff;font-weight:800;font-size:13px}
+    .bottom-tabs button.active{background:var(--accent-grad);color:#111}
+
+    .music-toggle{
+      display:flex;align-items:center;gap:10px;padding:8px;border-radius:999px;background:rgba(255,255,255,0.02);
+      font-weight:700;
+    }
+
+    /* Sports grid */
+    .sport-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .sport-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer}
+    .sport-card:hover{background:rgba(255,255,255,0.08)}
+    .sport-hero{font-size:64px;line-height:1}
+    .seg.small button{padding:6px 10px}
+
+    /* small screens */
+    @media (max-width:800px){
+      .sidebar{background: linear-gradient(180deg, rgba(0,0,0,0.8), rgba(0,0,0,0.6)); position:fixed;left:0;top:0;height:100vh;width:260px;display:block;transform:translateX(-100%);transition:transform .25s ease;z-index:1200;backdrop-filter:none;will-change:transform;pointer-events:auto}
+      .sidebar.open{transform:translateX(0)}
+      .mobile-toggle{display:inline-flex}
+      .mobile-close{display:flex}
+      .bottom-tabs{display:block}
+            .main{padding-bottom:88px}
+      .pwbox{width:320px}
+    }
+
+    /* iPhone 14 Pro-ish width tweaks */
+    @media (max-width:430px){
+      .glitch-logo img{height:90px}
+      .loading-text{font-size:14px}
+      .loading-bar{width:240px;height:4px}
+    }
+  
+.nav button { margin: 6px 0; }
+
+#refreshLive:hover {
+  background: linear-gradient(90deg, var(--thunder-red), var(--thunder-orange), #ff66a3);
+  box-shadow: 0 0 15px rgba(255, 30, 30, 0.6);
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
+</style>
+</head>
+<body>
+<div aria-hidden="true" class="bg">
+<div class="wave w1" style="top:-40%"></div>
+<div class="wave w2" style="top:-10%"></div>
+<div class="wave w3" style="top:20%"></div>
+</div>
+<!-- Loader: only final.png with glitch -->
+<div aria-hidden="false" class="loader-wrap" id="loader">
+<div class="glitch-logo">
+<img alt="GO 2025 logo" id="glitchImg" src="final.png"/>
+</div>
+<div class="loading-text">Website is loading...</div>
+<div aria-hidden="true" class="loading-bar">
+<div class="loading-bar-inner"></div>
+</div>
+</div>
+<!-- Auth overlay (Register / Login) -->
+<div class="overlay" id="authOverlay" style="display:none">
+  <div class="pwbox card" style="text-align:left;max-width:420px">
+    <img alt="logo" src="final.png" style="height:64px;margin-bottom:8px"/>
+    <h2 id="authTitle">Welcome — Sign In / Register</h2>
+
+    <div style="display:flex;gap:8px;margin-bottom:8px" id="authTabs">
+      <button id="tabRegister" class="btn primary" style="flex:1">Register</button>
+      <button id="tabLogin" class="btn" style="flex:1">Login</button>
+    </div>
+
+    <div id="registerForm">
+      <label>Email</label>
+      <input autocomplete="email" id="regEmail" placeholder="you@school.edu" type="email"/>
+      <label style="margin-top:8px">Confirm Email</label>
+      <input autocomplete="off" id="regEmailConfirm" placeholder="confirm email" type="email"/>
+      <div style="height:8px"></div>
+      <button id="regBtn" class="btn primary" style="width:100%">Register</button>
+      <div id="regMsg" style="margin-top:8px;color:#8f8;display:none"></div>
+    </div>
+
+    <div id="loginForm" style="display:none">
+      <label>Email</label>
+      <input autocomplete="email" id="loginEmail" placeholder="your registered email" type="email"/>
+      <div style="height:8px"></div>
+      <button id="loginBtn" class="btn primary" style="width:100%">Send Sign-in Link</button>
+      <div id="loginMsg" style="margin-top:8px;color:#8f8;display:none"></div>
+    </div>
+
+    <div id="authNote" style="margin-top:10px;color:#ddd;font-size:13px;opacity:0.95">
+      We use Firebase passwordless email sign-in (magic link) to verify you. Registered users only can receive login links.
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+<div class="app-wrap">
+<aside class="sidebar">
+<div class="mobile-close">
+<button aria-label="Close menu" class="mobile-toggle" id="navClose" title="Close">×</button>
+</div>
+<div class="logo">
+<img alt="logo" src="final.png"/>
+<div>
+<div class="title">GO 2025</div>
+<div style="font-size:12px;opacity:0.75">Gurukul Olympics</div>
+</div>
+</div>
+<nav aria-label="Main" class="nav" role="navigation">
+<button class="active" data-tab="home">Home</button>
+<button data-tab="events">Events</button>
+<button data-tab="live">Live Matches</button>
+<button data-tab="scoring">Scoring</button>
+<button data-tab="addmatches">Add Matches</button>
+<button data-tab="about">About Us</button>
+</nav>
+<div class="grow">
+<div>
+<div class="pill">125 Schools</div>
+<div style="height:8px"></div>
+<div class="pill">17,000 Participants</div>
+</div>
+</div>
+<div style="display:flex;gap:8px;align-items:center;justify-content:center">
+<div class="music-toggle" id="musicToggle" role="button" tabindex="0" title="Toggle ambient music">
+<span id="musicIcon">🔈</span>
+<span style="opacity:0.9">Ambient</span>
+</div>
+</div>
+</aside>
+<main class="main">
+<div class="header-row">
+<div style="display:flex;align-items:center;gap:14px">
+<button aria-label="Open menu" class="mobile-toggle" id="navToggle" title="Menu">☰</button>
+<input class="search" placeholder="Search schools, students or events..."/>
+<div style="padding:8px;border-radius:10px;background:var(--accent-grad);font-weight:900;color:#111">Live</div>
+</div>
+<div style="display:flex;gap:12px;align-items:center">
+<div style="text-align:right">
+<div style="font-weight:900">GO 2025</div>
+<div style="opacity:0.6;font-size:13px">Hyderabad</div>
+</div>
+</div>
+</div>
+<!-- Home tab -->
+<section class="card tab" id="home" style="display:block">
+<div style="display:flex;gap:18px;align-items:center">
+<div style="flex:1">
+<h1 style="font-size:28px;margin-bottom:6px">Welcome to Gurukul Olympics 2025</h1>
+<p style="opacity:0.8;margin-bottom:12px">Bringing sports, spirit and thunder energy to Hyderabad.</p>
+<div class="stats">
+<div class="stat">
+<div class="num" id="schoolsCount">125</div>
+<div class="label">Registered Schools</div>
+</div>
+<div class="stat">
+<div class="num" id="participantsCount">17,000</div>
+<div class="label">Participants</div>
+</div>
+<div class="stat">
+<div class="num" id="eventsCount">48</div>
+<div class="label">Sports / Events</div>
+</div>
+</div>
+</div>
+<div style="width:320px">
+<img alt="logo" src="final.png" style="width:100%;border-radius:12px;"/>
+</div>
+</div>
+<div style="height:18px"></div>
+<div class="quote-wrap card">
+<div class="quote">
+<span style="opacity:0.8">Highlight:</span>
+<div style="height:8px"></div>
+<div class="neon" id="changingQuote">Khelo Gurukul Jeeto Duniya Mein</div>
+</div>
+</div>
+</section>
+<!-- Events -->
+<section class="card tab" id="events" style="display:none">
+<h2>Choose Your Sport</h2>
+<div class="sport-grid" id="evHome"></div>
+<div id="evDetail" style="display:none">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+<div id="evTitle" style="font-weight:900">Sport</div>
+<button class="btn" id="evBack">Back</button>
+</div>
+<div class="seg small" id="evAges" style="margin-top:8px"></div>
+<div style="height:10px"></div>
+<svg class="bracket-svg" id="evBracketSVG"></svg>
+<div style="height:10px"></div>
+<div id="evFinished"></div>
+<!-- Completed Matches List -->
+<section class="section" id="completed-matches">
+<h3>Completed Matches</h3>
+<div id="completed-list">Loading finished matches...</div>
+</section>
+<!-- Detailed Scoresheet Modal and Backdrop -->
+<div id="modal-backdrop"></div>
+<div id="detailed-scoresheet">
+<div id="scoresheet-close">×</div>
+<h2>Match Details</h2>
+<div id="match-info"></div>
+<div id="score-details"></div>
+</div>
+</div>
+</section>
+<!-- Live Score -->
+<section class="card tab" id="live" style="display:none">
+<h2>Live Matches</h2>
+<p style="opacity:0.8">View and track live matches happening across all sports and venues.</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;justify-content:space-between">
+<button id="refreshLive" style="padding:10px 14px;border-radius:8px;border:0;background:linear-gradient(90deg,var(--orange),var(--red));font-weight:800;color:#fff">Refresh Live Data</button>
+<button id="filterSport" style="padding:10px 14px;border-radius:8px;border:0;background:rgba(255,255,255,0.03);color:#fff">Filter by Sport</button>
+<button id="filterVenue" style="padding:10px 14px;border-radius:8px;border:0;background:rgba(255,255,255,0.03);color:#fff">Filter by Venue</button>
+</div>
+<div id="liveMatchesList" style="margin-top:12px">
+<div class="card" style="margin-top:8px;padding:16px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
+<strong>Football - Semi Finals</strong>
+<div style="opacity:0.7;font-size:13px">School A vs School B</div>
+<div style="opacity:0.7;font-size:12px">Venue: Main Stadium</div>
+</div>
+<div style="text-align:right">
+<div style="font-size:24px;font-weight:800;color:var(--orange)">2 - 1</div>
+<div style="font-size:12px;opacity:0.8">45'</div>
+</div>
+</div>
+</div>
+<div class="card" style="margin-top:8px;padding:16px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
+<strong>Basketball - Quarter Finals</strong>
+<div style="opacity:0.7;font-size:13px">Team X vs Team Y</div>
+<div style="opacity:0.7;font-size:12px">Venue: Indoor Court</div>
+</div>
+<div style="text-align:right">
+<div style="font-size:24px;font-weight:800;color:var(--orange)">18 - 15</div>
+<div style="font-size:12px;opacity:0.8">Q3</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Scoring -->
+<section class="card tab" id="scoring" style="display:none">
+<h2>Scoring Hub</h2>
+<p style="opacity:0.8">Select a match to open the full-page scoring manager. Supports multiple sports.</p>
+<div id="scoringControls" style="display:flex;gap:12px;align-items:center;margin-top:12px">
+<button class="btn" id="scRefresh">Refresh List</button>
+<div style="flex:1"></div>
+<div style="opacity:0.8">Sample matches available for testing.</div>
+</div>
+<div id="scoringList" style="margin-top:12px"></div>
+<!-- Full-page scoring view (hidden until a match is selected) -->
+<section id="scoring-view" style="display:none;margin-top:12px">
+<div class="card" id="scoringHeader" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px">
+<div style="display:flex;align-items:center;gap:12px">
+<button class="btn ghost" id="scBackBtn">← Back</button>
+<div>
+<div id="scSportLabel" style="font-weight:900;font-size:18px">Sport</div>
+<div id="scVenue" style="opacity:0.7;font-size:13px">Venue</div>
+</div>
+</div>
+<div style="text-align:right">
+<div id="scMatchRound" style="font-weight:900">Round</div>
+<div id="scMatchTime" style="opacity:0.7;font-size:12px">Time</div>
+</div>
+</div>
+<div style="display:flex;gap:18px;margin-top:12px;align-items:flex-start">
+<!-- Left: Scoreboard and controls -->
+<div style="flex:1;min-width:320px">
+<div class="card" style="padding:18px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+<div style="flex:1">
+<div style="font-size:14px;color:#ddd">Teams</div>
+<div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+<div style="flex:1">
+<div id="scTeamAName" style="font-weight:900">Team A</div>
+<div id="scTeamAInfo" style="opacity:0.7;font-size:13px">School</div>
+</div>
+<div style="text-align:center">
+<div id="scScoreDisplay" style="font-size:36px;font-weight:900;color:var(--thunder-orange)">0 - 0</div>
+<div id="scStatus" style="opacity:0.8">SCHEDULED</div>
+</div>
+<div style="flex:1;text-align:right">
+<div id="scTeamBName" style="font-weight:900">Team B</div>
+<div id="scTeamBInfo" style="opacity:0.7;font-size:13px">School</div>
+</div>
+</div>
+</div>
+</div>
+<div style="height:12px"></div>
+<div id="scStartRow" style="display:flex;gap:10px;align-items:center">
+<button class="btn primary" id="scStartBtn">Start Scoring</button>
+<button class="btn" id="scPauseBtn" style="display:none">Pause</button>
+<button class="btn danger" id="scEndBtn" style="display:none">End Match</button>
+<div style="flex:1"></div>
+<button class="btn ghost" id="scSaveBtn">Save Progress</button>
+</div>
+<div style="height:14px"></div>
+<!-- Sport-specific controls -->
+<div id="sportControls"></div>
+</div>
+</div>
+<!-- Right: Event timeline -->
+<div style="width:420px;min-width:320px">
+<div class="card" style="padding:16px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="font-weight:900">Event Timeline</div>
+<div id="timelineClock" style="opacity:0.7;font-size:13px">00:00</div>
+</div>
+<div style="height:8px"></div>
+<div id="eventTimeline" style="max-height:520px;overflow:auto;padding-right:6px"></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+<!-- Add Matches -->
+<section class="card tab" id="addmatches" style="display:none">
+<h2>Add Matches</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px">
+<div>
+<label>Sport</label>
+<select id="amSport" style="width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff"></select>
+</div>
+<div>
+<label>Age</label>
+<select id="amAge" style="width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff"></select>
+</div>
+<div>
+<label>Round</label>
+<input id="amRound" style="width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff" value="R1"/>
+</div>
+<div>
+<label>Team A</label>
+<input id="amTeamA" placeholder="Team A" style="width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff"/>
+</div>
+<div>
+<label>Team B</label>
+<input id="amTeamB" placeholder="Team B" style="width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,0.06);color:#fff"/>
+</div>
+</div>
+<div style="margin-top:10px;display:flex;gap:10px">
+<button class="btn primary" id="amCreate">Create Match</button>
+<div id="amMsg" style="opacity:0.9"></div>
+</div>
+<div style="height:12px"></div>
+<h3 style="margin-bottom:6px">Existing R1 Matches</h3>
+<div id="amList"></div>
+</section>
+<!-- About -->
+<section class="card tab" id="about" style="display:none">
+<h2>About Us</h2>
+<p>Information about Gurukul Olympics 2025 — Thunder Edition, Hyderabad.</p>
+</section>
+</main>
+</div>
+</div>
+<div aria-label="Mobile tabs" class="bottom-tabs" id="bottomTabs">
+<div class="tabs-inner">
+<button data-tab="home">Home</button>
+<button data-tab="events">Events</button>
+<button data-tab="live">Live</button>
+<button data-tab="scoring">Scoring</button>
+<button data-tab="about">About</button>
+</div>
+</div>
+<div aria-hidden="true" class="backdrop" id="navBackdrop"></div>
+<!-- Guide widget (hidden until after login) -->
+<div class="guide" id="guide" style="display:none">
+<h4>Welcome — Jai Swaminarayan</h4>
+<p id="guideText">This is the official Gurukul Olympics 2025 website. We'll guide you through the main features.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end">
+<button id="guideNext" style="padding:8px 12px;border-radius:8px;border:0;background:var(--thunder-orange);font-weight:900;color:#111">Start Tour</button>
+<button id="guideClose" style="padding:8px 12px;border-radius:8px;border:0;background:transparent;color:#ddd">Close</button>
+</div>
+</div>
+<!-- Tour Overlay -->
+<div class="tour-overlay" id="tourOverlay">
+<div class="tour-highlight" id="tourHighlight"></div>
+<div class="tour-modal" id="tourModal">
+<h3 id="tourTitle">Welcome to Gurukul Olympics 2025</h3>
+<p id="tourText">Jai Swaminarayan! Welcome to the official Gurukul Olympics 2025 website. Let's take a quick tour of the main features.</p>
+<div class="tour-buttons">
+<button class="tour-btn primary" id="tourNext">Next</button>
+<button class="tour-btn secondary" id="tourSkip">Skip Tour</button>
+</div>
+</div>
+</div>
+<!-- Scoring Modal (added for functionality) -->
+<!-- Scoring Modal (enhanced for full score management) -->
+<div class="modal" id="scoreModal">
+<div class="box">
+<div class="row">
+<h3 id="scoreMatchTitle">Match Title</h3>
+<button class="btn ghost" id="scoreClose">×</button>
+</div>
+<div class="score-grid">
+<div class="panel">
+<h4 id="teamAName">Team A</h4>
+<div class="num-lg" id="teamAScore">0</div>
+<div id="scoreButtonsA"></div>
+</div>
+<div class="panel">
+<h4 id="teamBName">Team B</h4>
+<div class="num-lg" id="teamBScore">0</div>
+<div id="scoreButtonsB"></div>
+</div>
+</div>
+<!-- Timer and Period Controls -->
+<div class="row" style="margin-top:16px">
+<label>Match Duration:</label>
+<input id="matchDuration" placeholder="MM:SS" style="flex:1;padding:8px;border-radius:8px;border:0;background:rgba(255,255,255,0.06);color:#fff" value="40:00"/>
+<label>Current Period:</label>
+<span id="currentPeriod">Q1</span>
+<button class="btn" id="btnNextPeriod">Next Period</button>
+</div>
+<div class="row" style="margin-top:8px">
+<label>Period Timer:</label>
+<input id="periodTimer" placeholder="MM:SS" style="flex:1;padding:8px;border-radius:8px;border:0;background:rgba(255,255,255,0.06);color:#fff" value="10:00"/>
+<button class="btn primary" id="btnStartPausePeriod">Start Period</button>
+<button class="btn danger" id="btnFinish">Finish Match</button>
+</div>
+<div class="row" style="margin-top:8px">
+<button class="btn" id="btnUndo">Undo Last Action</button>
+<div id="scoreStatus" style="flex:1;text-align:center;opacity:0.8">SCHEDULED</div>
+<button class="btn ghost" id="btnReset">Reset Match</button>
+</div>
+<!-- Event Log -->
+<div style="margin-top:16px">
+<h4>Event Log</h4>
+<div id="eventLog" style="max-height:100px;overflow-y:auto;background:rgba(255,255,255,0.04);padding:8px;border-radius:8px;font-size:12px;color:#ddd"></div>
+</div>
+</div>
+</div>
+<script>
+/* -----------------------
+   Thunder Edition JS
+   -----------------------*/
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyBRBbTB_IFTgYBxTtwgfqHJn8q7Obtcgcc",
+  authDomain: "gc-score.firebaseapp.com",
+  databaseURL: "https://gc-score-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "gc-score",
+  storageBucket: "gc-score.firebasestorage.app",
+  messagingSenderId: "931498134631",
+  appId: "1:931498134631:web:3ae36315460781c95c58c2",
+  measurementId: "G-86QNEK7MDQ"
+};
+
+// Initialize Firebase (using CDN scripts)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Listeners for persistence
+db.collection('matches').onSnapshot((snapshot) => {
+  state.matches = {};
+  snapshot.forEach((doc) => {
+    state.matches[doc.id] = doc.data();
+  });
+  saveState();
+  renderEvents();
+  renderScoring();
+});
+
+db.collection('brackets').onSnapshot((snapshot) => {
+  state.brackets = {};
+  snapshot.forEach((doc) => {
+    state.brackets[doc.id] = doc.data().matchIds;
+  });
+  saveState();
+  renderEvents();
+});
+
+db.collection('rounds').onSnapshot((snapshot) => {
+  state.rounds = {};
+  snapshot.forEach((doc) => {
+    state.rounds[doc.id] = doc.data();
+  });
+  saveState();
+  renderEvents();
+});
+
+const PASSWORD = "GO#2025"; // updated default password
+
+const SPORTS = ['football','basketball','volleyball','kabaddi','tugofwar','100m','200m','400m','4x100m','zigzag','discus','shotput','javelin','highjump','longjump','badminton_singles','badminton_doubles','tabletennis_singles','tabletennis_doubles','carrom_single','carrom_double','chess','taekwondo','skating'];
+const SPORT_LABEL = {
+  football:'Football',
+  basketball:'Basketball',
+  volleyball:'Volleyball',
+  kabaddi:'Kabaddi',
+  tugofwar:'Tug of War',
+  '100m':'100m Race',
+  '200m':'200m Race',
+  '400m':'400m Race',
+  '4x100m':'4x100m Relay',
+  zigzag:'Zig Zag Relay',
+  discus:'Discus Throw',
+  shotput:'Shot Put',
+  javelin:'Javelin Throw',
+  highjump:'High Jump',
+  longjump:'Long Jump',
+  badminton_singles:'Badminton Singles',
+  badminton_doubles:'Badminton Doubles',
+  tabletennis_singles:'Table Tennis Singles',
+  tabletennis_doubles:'Table Tennis Doubles',
+  carrom_single:'Carrom Single',
+  carrom_double:'Carrom Double',
+  chess:'Chess',
+  taekwondo:'Taekwondo',
+  skating:'Skating'
+};
+const AGES = ['u12','u14','u16','u18'];
+const AGE_LABEL = {u12:'U12', u14:'U14', u16:'U16', u18:'U18'};
+
+// Placeholder schools
+const PLACEHOLDER_SCHOOLS = [
+  'Gurukul Hyderabad','Gurukul Ahmedabad','Gurukul Surat','Gurukul Rajkot',
+  'Gurukul Junagadh','Gurukul Mumbai','Gurukul Pune','Gurukul Vadodara',
+  'Gurukul Delhi','Gurukul Nashik'
+];
+
+// Bracket layout constants
+const MATCH_H = 90; // must align with CSS min-height
+const GAP_V = 18;  // vertical gap baseline
+const R1_EXTRA_GAP = 10; // add small extra space between R1 matches
+const COL_W = 220; // must align with CSS round-col width
+const COL_GAP = 18;
+
+// Simple state with localStorage persistence
+const STORE_KEY = 'go2025_state_v1';
+let state = loadState() || { brackets: {} , matches: {}, live: [], rounds: {} };
+function saveState(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+function loadState(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)||''); }catch(e){ return null; } }
+
+function ensureBracket(sport, age){
+  const key = `${sport}_${age}`;
+  if(!state.brackets[key]){
+    const teams = PLACEHOLDER_SCHOOLS.slice(0,10); // use 10 to demo
+    const pow = Math.pow(2, Math.ceil(Math.log2(teams.length)));
+    const padded = teams.concat(Array(Math.max(0, pow - teams.length)).fill('BYE'));
+    const pairs = [];
+    for(let i=0;i<padded.length;i+=2){ pairs.push([i, i+1]); }
+    const matches = pairs.map((p,idx)=> createMatch(sport, age, padded[p[0]], padded[p[1]], `R1-${idx+1}`));
+    state.brackets[key] = matches.map(m=>m.id);
+    // Save to Firestore
+    db.collection('brackets').doc(key).set({ matchIds: state.brackets[key] });
+    saveState();
+  }
+  return state.brackets[key].map(id=> state.matches[id]);
+}
+
+function ensureFullRounds(sport, age){
+  const key = `${sport}_${age}`;
+  const r1 = ensureBracket(sport, age).map(m=>m.id);
+  // Rebuild rounds generically every time for consistency
+  const roundsObj = { };
+  roundsObj.r1 = r1.slice();
+  let prev = r1.slice();
+  let roundIndex = 2;
+  while(prev.length > 1){
+    const next = [];
+    for(let i=0;i<prev.length;i+=2){
+      if(i+1 >= prev.length){
+        // odd leftover: promote as is (acts like BYE forward)
+        next.push(prev[i]);
+      } else {
+        const aLabel = `Winner R${roundIndex-1}-${i+1}`;
+        const bLabel = `Winner R${roundIndex-1}-${i+2}`;
+        const match = createMatch(sport, age, aLabel, bLabel, roundIndex===Math.ceil(Math.log2(r1.length))+1? 'Final' : `R${roundIndex}-${(i/2)+1}`);
+        next.push(match.id);
+      }
+    }
+    roundsObj[`r${roundIndex}`] = next;
+    prev = next;
+    roundIndex++;
+  }
+  state.rounds[key] = roundsObj;
+  // Save to Firestore
+  db.collection('rounds').doc(key).set(roundsObj);
+  saveState();
+  return state.rounds[key];
+}
+
+function getRoundsMatches(sport, age){
+  const key = `${sport}_${age}`;
+  const rr = ensureFullRounds(sport, age);
+  const out = [];
+  let idx = 1;
+  while(rr[`r${idx}`] && rr[`r${idx}`].length){
+    out.push(rr[`r${idx}`].map(id=> state.matches[id]).filter(Boolean));
+    idx++;
+  }
+  return out;
+}
+
+function buildRoundsNodes(roundsMatches){
+  const rounds = [];
+  for(let i=0;i<roundsMatches.length;i++){
+    const arr = roundsMatches[i];
+    const label = i===roundsMatches.length-1 && arr.length===1 ? 'Final' : `R${i+1}`;
+    rounds.push(arr.map((m,idx)=> ({ id:m.id, a:{matchId:m.id, side:'A'}, b:{matchId:m.id, side:'B'}, label: `${label}-${idx+1}` })));
+  }
+  return rounds;
+}
+
+let matchSeq = Date.now();
+function createMatch(sport, age, teamA, teamB, round){
+  const id = `m_${++matchSeq}`;
+  const m = { id, sport, age, round: round||'R1', teamA, teamB, scoreA:0, scoreB:0, status:'scheduled', events:[], duration:'10:00', timeLeft:'10:00', startedAt:null, finishedAt:null };
+  state.matches[id] = m;
+  // Save to Firestore
+  db.collection('matches').doc(id).set(m);
+  saveState(); return m;
+}
+
+function setLive(id, live){
+  const idx = state.live.indexOf(id);
+  if(live){
+    if(idx===-1) state.live.push(id);
+    // Add to liveMatches collection
+    const m = state.matches[id];
+    if(m) db.collection('liveMatches').doc(id).set(m);
+  }
+  else {
+    if(idx!==-1) state.live.splice(idx,1);
+    // Remove from liveMatches collection
+    db.collection('liveMatches').doc(id).delete();
+  }
+  saveState();
+}
+
+function formatMatchBadge(m){
+  if(m.status==='live') return '<span class="badge live">LIVE</span>';
+  if(m.status==='finished') return '<span class="badge done">FINISHED</span>';
+  return `<span class="badge">${m.round||''}</span>`;
+}
+
+// Loader: glitch only the final.png then show password after 5s
+
+(() => {
+  // Runs immediately since script is at end of body
+  const loader = document.getElementById('loader');
+  const img = document.getElementById('glitchImg');
+  const pw = document.getElementById('pw');
+  const appEl = document.getElementById('app');
+
+  function fadeOut(){
+    if(!loader) { if(pw) pw.style.display='flex'; return; }
+    loader.style.transition = 'opacity 0.9s ease';
+    loader.style.opacity = '0';
+    setTimeout(() => { try{ loader.remove(); }catch(e){} if(pw) pw.style.display='flex'; if(appEl) appEl.style.display='none'; }, 900);
+  }
+
+  if(!loader || !img){ setTimeout(()=>{ if(pw) pw.style.display='flex'; }, 500); return; }
+
+  const start = performance.now();
+  let rafId = null;
+  function tick(t){
+    const dx = (Math.random()-0.5)*6;
+    const dy = (Math.random()-0.5)*6;
+    const sc = 1 + (Math.random()-0.5)*0.05;
+    img.style.opacity = String(0.6 + Math.random()*0.4);
+    img.style.transform = `translate(${dx}px, ${dy}px) scale(${sc})`;
+    if(t - start < 5000){ rafId = requestAnimationFrame(tick); } else { fadeOut(); }
+  }
+  rafId = requestAnimationFrame(tick);
+  // Safety timeout to ensure it always disappears
+  setTimeout(fadeOut, 5200);
+})();
+
+/* Authentication flow (Registration + passwordless email sign-in using Firebase Auth) */
+const auth = firebase.auth();
+const authOverlay = document.getElementById('authOverlay');
+const regEmail = document.getElementById('regEmail');
+const regEmailConfirm = document.getElementById('regEmailConfirm');
+const regBtn = document.getElementById('regBtn');
+const regMsg = document.getElementById('regMsg');
+const loginEmail = document.getElementById('loginEmail');
+const loginBtn = document.getElementById('loginBtn');
+const loginMsg = document.getElementById('loginMsg');
+const tabRegister = document.getElementById('tabRegister');
+const tabLogin = document.getElementById('tabLogin');
+const registerForm = document.getElementById('registerForm');
+const loginForm = document.getElementById('loginForm');
+
+// actionCodeSettings for email link sign-in
+const actionCodeSettings = {
+  // After sign-in completion, user will be redirected back to this URL.
+  url: window.location.href.split('#')[0],
+  handleCodeInApp: true,
+};
+
+// show the auth overlay after loader finishes
+function showAuthOverlay(){
+  authOverlay.style.display = 'flex';
+  // If user is already signed in, hide overlay
+  auth.onAuthStateChanged(user => {
+    if(user){
+      authOverlay.style.display = 'none';
+      app.style.display = 'block';
+      document.getElementById('guide').style.display = 'none';
+      setTimeout(()=> startTour(), 700);
+    }
+  });
+}
+
+// tab handlers
+tabRegister.addEventListener('click', ()=> { tabRegister.classList.add('primary'); tabLogin.classList.remove('primary'); registerForm.style.display='block'; loginForm.style.display='none'; });
+tabLogin.addEventListener('click', ()=> { tabLogin.classList.add('primary'); tabRegister.classList.remove('primary'); loginForm.style.display='block'; registerForm.style.display='none'; });
+
+// Register user (stores email in Firestore for later verification)
+regBtn.addEventListener('click', async ()=>{
+  const e = (regEmail.value||'').trim().toLowerCase();
+  const c = (regEmailConfirm.value||'').trim().toLowerCase();
+  regMsg.style.display='none';
+  if(!e || !c){ regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Please enter and confirm your email.'; return; }
+  if(e !== c){ regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Emails do not match.'; return; }
+  try{
+    // create a document with id = email to mark registration (simple approach)
+    await db.collection('registeredUsers').doc(encodeURIComponent(e)).set({ email: e, createdAt: new Date().toISOString() });
+    regMsg.style.display='block'; regMsg.style.color='#8f8'; regMsg.innerText='Registered! You can now use Login tab to get a sign-in link.';
+    regEmail.value=''; regEmailConfirm.value='';
+    // auto-switch to login tab
+    tabLogin.click();
+  }catch(err){
+    console.error(err);
+    regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Registration failed. See console.';
+  }
+});
+
+// Login: verify email exists in registeredUsers then send sign-in link
+loginBtn.addEventListener('click', async ()=>{
+  const e = (loginEmail.value||'').trim().toLowerCase();
+  loginMsg.style.display='none';
+  if(!e){ loginMsg.style.display='block'; loginMsg.style.color='#f88'; loginMsg.innerText='Enter your registered email.'; return; }
+  try{
+    const doc = await db.collection('registeredUsers').doc(encodeURIComponent(e)).get();
+    if(!doc.exists){
+      loginMsg.style.display='block'; loginMsg.style.color='#f88'; loginMsg.innerText='Email not registered. Please register first.';
+      return;
+    }
+    // send sign-in link
+    await auth.sendSignInLinkToEmail(e, actionCodeSettings);
+    // Save email locally to complete sign-in on same device
+    window.localStorage.setItem('emailForSignIn', e);
+    loginMsg.style.display='block'; loginMsg.style.color='#8f8'; loginMsg.innerText='Sign-in link sent. Check your email and click the link to complete sign-in.';
+    loginEmail.value='';
+  }catch(err){
+    console.error(err);
+    loginMsg.style.display='block'; loginMsg.style.color='#f88'; loginMsg.innerText='Failed to send sign-in link. See console.';
+  }
+});
+
+// Handle email link sign-in when page loads with an email link
+if (auth.isSignInWithEmailLink && auth.isSignInWithEmailLink(window.location.href)) {
+  // Try to get the saved email first
+  let email = window.localStorage.getItem('emailForSignIn');
+  if (!email) {
+    // Ask the user for their email if not found
+    email = window.prompt('Please enter your email to complete sign-in:');
+  }
+  if (email) {
+    auth.signInWithEmailLink(email, window.location.href).then((result) => {
+      // Clear email from storage
+      window.localStorage.removeItem('emailForSignIn');
+      // Signed in!
+      authOverlay.style.display = 'none';
+      app.style.display = 'block';
+      document.getElementById('guide').style.display = 'none';
+      setTimeout(()=> startTour(), 700);
+    }).catch((err) => {
+      console.error('Error completing sign-in:', err);
+      alert('Sign-in failed. See console for details.');
+    });
+  }
+}
+
+// Show the overlay by default (the loader code will call showAuthOverlay after finishing)
+showAuthOverlay();
+
+
+/* Tab navigation with hash + auto-close */
+const tabIds = Array.from(document.querySelectorAll('.tab')).map(t=>t.id);
+function showTab(tab){
+  if(!tabIds.includes(tab)) tab = 'home';
+  document.querySelectorAll('.tab').forEach(t=> t.style.display='none');
+  const el = document.getElementById(tab);
+  if(el) el.style.display = 'block';
+  document.querySelectorAll('.nav button').forEach(b=>{
+    if(b.dataset.tab === tab) b.classList.add('active'); else b.classList.remove('active');
+  });
+  document.querySelectorAll('#bottomTabs button').forEach(b=>{
+    if(b.dataset.tab === tab) b.classList.add('active'); else b.classList.remove('active');
+  });
+  // lazy init for Events/Scoring grids
+  if(tab==='events'){ try{ if(evHome && evHome.children.length===0) renderEventsPage(); }catch(e){} }
+  if(tab==='scoring'){ try{ if(scHome && scHome.children.length===0) renderScoringPage(); }catch(e){} }
+  if(tab==='addmatches'){ try{ initAddMatches(); }catch(e){} }
+  try{ history.replaceState(null, '', '#'+tab); }catch(e){}
+  const main = document.querySelector('.main');
+  if(main) main.scrollTop = 0;
+}
+document.querySelectorAll('.nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=> { showTab(btn.dataset.tab); if(window.innerWidth<=800) closeNav(); });
+});
+
+document.querySelectorAll('#bottomTabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=> { showTab(btn.dataset.tab); });
+});
+
+window.addEventListener('hashchange', ()=> showTab((location.hash||'').replace('#','')));
+showTab((location.hash||'').replace('#',''));
+
+/* Render Live Matches */
+function renderLive(matches = []) {
+  const container = document.getElementById('liveMatchesList');
+  if (matches.length === 0) {
+    container.innerHTML = '<div style="opacity:0.7;text-align:center;padding:20px">No live matches currently.</div>';
+    return;
+  }
+  container.innerHTML = matches.map(match => `
+    <div class="card" style="margin-top:8px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>${match.sport ? match.sport.charAt(0).toUpperCase() + match.sport.slice(1) : 'Unknown'} - ${match.round || 'Round'}</strong>
+          <div style="opacity:0.7;font-size:13px">${match.teamA || 'Team A'} vs ${match.teamB || 'Team B'}</div>
+          <div style="opacity:0.7;font-size:12px">Venue: ${match.venue || 'TBD'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:24px;font-weight:800;color:var(--orange)">${match.scoreA || 0} - ${match.scoreB || 0}</div>
+          <div style="font-size:12px;opacity:0.8">${match.time || new Date().toLocaleTimeString()}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* Fetch live matches from Firestore */
+let liveMatchesUnsubscribe = null;
+
+function fetchLiveMatches() {
+  try {
+    const liveMatchesRef = db.collection('liveMatches');
+    liveMatchesUnsubscribe = liveMatchesRef.onSnapshot((querySnapshot) => {
+      const matches = [];
+      querySnapshot.forEach((doc) => {
+        matches.push({ id: doc.id, ...doc.data() });
+      });
+      renderLive(matches);
+    }, (error) => {
+      console.error('Error fetching live matches:', error);
+      renderLive(); // Render empty on error
+    });
+  } catch (error) {
+    console.error('Firestore not initialized:', error);
+    renderLive(); // Fallback to empty
+  }
+}
+
+/* Add event listener for refresh button */
+document.getElementById('refreshLive').addEventListener('click', () => {
+  if (liveMatchesUnsubscribe) {
+    liveMatchesUnsubscribe(); // Unsubscribe previous listener
+  }
+  fetchLiveMatches(); // Re-fetch and set new listener
+});
+
+/* Initialize live matches on page load */
+fetchLiveMatches();
+
+/* ---------- Builders and renderers ---------- */
+function sportGrid(container, onSelect){
+  const icons = {
+    football:'⚽',
+    basketball:'🏀',
+    volleyball:'🏐',
+    kabaddi:'🤼',
+    tugofwar:'🏋️',
+    '100m':'🏃',
+    '200m':'🏃',
+    '400m':'🏃',
+    '4x100m':'🏃‍♂️🏃‍♀️🏃‍♂️🏃‍♀️',
+    zigzag:'🏃‍♂️↗️🏃‍♀️↙️',
+    discus:'🥏',
+    shotput:'🏐',
+    javelin:'🏹',
+    highjump:'🤸',
+    longjump:'🤸‍♂️',
+    badminton_singles:'🏸',
+    badminton_doubles:'🏸',
+    tabletennis_singles:'🏓',
+    tabletennis_doubles:'🏓',
+    carrom_single:'🎯',
+    carrom_double:'🎯',
+    chess:'♟️',
+    taekwondo:'🥋',
+    skating:'⛸️'
+  };
+  container.innerHTML = SPORTS.map(s=> `
+    <div class="sport-card" data-sport="${s}">
+      <div class="sport-hero">${icons[s]||'🏅'}</div>
+      <div style="font-weight:900">${SPORT_LABEL[s]}</div>
+    </div>`).join('');
+  container.querySelectorAll('.sport-card').forEach(c=> c.addEventListener('click', ()=> onSelect(c.dataset.sport)));
+}
+
+function buildSegButtons(container, values, labels, active, onClick){
+  container.innerHTML = values.map(v=> `<button class="${v===active?'active':''}">${labels[v]}</button>`).join('');
+  Array.from(container.children).forEach((b,i)=> b.addEventListener('click', ()=> onClick(values[i])));
+}
+
+let evSel = {sport:null, age:'u12'};
+function renderEventsPage(){
+  // home grid
+  sportGrid(evHome, (s)=>{ evSel.sport = s; evHome.style.display='none'; evDetail.style.display='block'; renderEventsDetail(); });
+  evBack && evBack.addEventListener('click', ()=>{ evDetail.style.display='none'; evHome.style.display='grid'; });
+}
+
+function renderEventsDetail(){
+  evTitle.innerText = `${SPORT_LABEL[evSel.sport]}`;
+  buildSegButtons(evAges, AGES, AGE_LABEL, evSel.age, (a)=>{ evSel.age=a; renderEventsDetail(); });
+  const roundsMatches = getRoundsMatches(evSel.sport, evSel.age);
+  const rounds = buildRoundsNodes(roundsMatches);
+  const svg = makeBracketSVG(rounds, false);
+  evBracketSVG.setAttribute('viewBox', `0 0 ${svg.w} ${svg.h}`);
+  evBracketSVG.innerHTML = svg.content;
+  const finished = roundsMatches.flat().filter(m=>m.status==='finished');
+  evFinished.innerHTML = finished.length? finished.map(m=> `<div class="team" style="margin-top:6px"><span>${m.teamA} vs ${m.teamB}</span><strong>${m.scoreA} - ${m.scoreB}</strong></div>`).join('') : '<div style="opacity:.8">No finished games yet.</div>';
+}
+
+let scSel = {sport:null, age:'u12'};
+function renderScoringPage(){
+  sportGrid(scHome, (s)=>{ scSel.sport = s; scHome.style.display='none'; scDetail.style.display='block'; renderScoringDetail(); });
+  scBack && scBack.addEventListener('click', ()=>{ scDetail.style.display='none'; scHome.style.display='grid'; });
+}
+
+function renderScoringDetail(){
+  scTitle.innerText = `${SPORT_LABEL[scSel.sport]}`;
+  buildSegButtons(scAges, AGES, AGE_LABEL, scSel.age, (a)=>{ scSel.age=a; renderScoringDetail(); });
+  const roundsMatches = getRoundsMatches(scSel.sport, scSel.age);
+  const r1 = roundsMatches[0]||[];
+  scMatches.innerHTML = r1.map(m=> `<div class="match" style="margin-top:8px"><div class="teams"><div class="team"><span>${m.teamA}</span><strong>${m.scoreA}</strong></div><div class="team"><span>${m.teamB}</span><strong>${m.scoreB}</strong></div></div></div>`).join('');
+}
+
+function makeBracketSVG(rounds, clickable){
+  const BW = 160, BH = 56, GAPX = 120, GAPY = 24, PADX = 24, PADY = 24;
+  const cols = rounds.length;
+  const rows = rounds[0].length;
+  const S0 = BH + GAPY + R1_EXTRA_GAP;
+  const W = PADX*2 + cols*BW + (cols-1)*GAPX;
+  const yPos = [];
+  const xPos = Array.from({length:cols}, (_,ci)=> PADX + ci*(BW+GAPX));
+  // compute y positions
+  for(let ci=0; ci<cols; ci++){
+    const count = rounds[ci].length;
+    const ys = [];
+    for(let j=0;j<count;j++){
+      if(ci===0){ ys.push(PADY + j*S0); }
+      else{
+        const prev = yPos[ci-1];
+        const s1 = j*2, s2 = j*2+1;
+        const yA = prev[s1] + BH/2;
+        const yB = (s2<prev.length? prev[s2]:prev[s1]) + BH/2;
+        ys.push( (yA+yB)/2 - BH/2 );
+      }
+    }
+    yPos.push(ys);
+  }
+  const H = Math.max(...yPos[0]) + BH + PADY;
+  // connectors path
+  let path = '';
+  for(let ci=0; ci<cols-1; ci++){
+    const x1 = xPos[ci] + BW;
+    const x2 = xPos[ci+1];
+    const midX = (x1 + x2)/2;
+    for(let j=0;j<yPos[ci+1].length;j++){
+      const s1 = j*2, s2 = j*2+1;
+      if(s1 >= yPos[ci].length) continue;
+      const yA = yPos[ci][s1] + BH/2;
+      const yB = (s2<yPos[ci].length? yPos[ci][s2] : yPos[ci][s1]) + BH/2;
+      const yC = yPos[ci+1][j] + BH/2;
+      path += `M ${x1} ${yA} H ${midX} M ${x1} ${yB} H ${midX} M ${midX} ${yA} V ${yB} M ${midX} ${yC} H ${x2} `;
+    }
+  }
+  // matches markup
+  let matches = '';
+  for(let ci=0; ci<cols; ci++){
+    for(let j=0;j<rounds[ci].length;j++){
+      const node = rounds[ci][j];
+      const m = state.matches[node.id];
+      const x = xPos[ci], y = yPos[ci][j];
+      const click = clickable && node.id ? `clickable` : '';
+      const data = clickable && node.id ? `data-id=\"${node.id}\"` : '';
+      matches += `<g class="match ${click}" ${data} transform="translate(${x},${y})">
+        <rect width="${BW}" height="${BH}" rx="10" ry="10" style="fill:rgba(255,255,255,0.06);stroke:rgba(255,255,255,0.12);stroke-width:1"/>
+        <text x="10" y="20" fill="#fff" font-size="12" font-weight="700">${m.teamA}</text>
+        <text x="${BW-10}" y="20" fill="#fff" font-size="12" font-weight="900" text-anchor="end">${m.scoreA}</text>
+        <text x="10" y="40" fill="#ddd" font-size="12">${m.teamB}</text>
+        <text x="${BW-10}" y="40" fill="#ddd" font-size="12" font-weight="900" text-anchor="end">${m.scoreB}</text>
+      </g>`;
+    }
+  }
+  const content = `<g class="conns"><path class="bracket-conn" d="${path}"/></g><g class="matches">${matches}</g>`;
+  return { w: W, h: H, content };
+}
+
+/* ---------- Scoring modal logic ---------- */
+/* ---------- Enhanced Scoring Modal Logic ---------- */
+let currentMatchId = null;
+let timers = {};
+let periodTimers = {}; // Separate timers for periods
+let currentPeriodIndex = 0; // Track current period (0-based)
+
+const PERIOD_LABELS = {
+  football: ['Half 1', 'Half 2'],
+  basketball: ['Q1', 'Q2', 'Q3', 'Q4'],
+  volleyball: ['Set 1', 'Set 2', 'Set 3', 'Set 4', 'Set 5'], // Up to 5 sets
+  kabaddi: ['Half 1', 'Half 2']
+};
+
+const SPORT_SCORING = {
+  football: { buttons: ['Goal'], points: [1] }, // 1 point per goal
+  basketball: { buttons: ['+1', '+2', '+3'], points: [1, 2, 3] },
+  volleyball: { buttons: ['Point'], points: [1] }, // Points per set; sets win at 25 (or 15 in tiebreak)
+  kabaddi: { buttons: ['Raid Point', 'Bonus'], points: [1, 2] }, // 1 for raid, 2 for bonus
+  tugofwar: { buttons: ['Win Round'], points: [1] }, // Win round = 1 point
+  '100m': { buttons: ['Finish'], points: [1] }, // Time-based, but track finish order
+  '200m': { buttons: ['Finish'], points: [1] },
+  '400m': { buttons: ['Finish'], points: [1] },
+  '4x100m': { buttons: ['Finish'], points: [1] },
+  zigzag: { buttons: ['Finish'], points: [1] },
+  discus: { buttons: ['Throw'], points: [1] }, // Distance-based, track best throw
+  shotput: { buttons: ['Throw'], points: [1] },
+  javelin: { buttons: ['Throw'], points: [1] },
+  highjump: { buttons: ['Clear Height'], points: [1] },
+  longjump: { buttons: ['Jump'], points: [1] },
+  badminton_singles: { buttons: ['Point'], points: [1] },
+  badminton_doubles: { buttons: ['Point'], points: [1] },
+  tabletennis_singles: { buttons: ['Point'], points: [1] },
+  tabletennis_doubles: { buttons: ['Point'], points: [1] },
+  carrom_single: { buttons: ['Point'], points: [1] },
+  carrom_double: { buttons: ['Point'], points: [1] },
+  chess: { buttons: ['Win'], points: [1] },
+  taekwondo: { buttons: ['Point'], points: [1] },
+  skating: { buttons: ['Point'], points: [1] }
+};
+
+function openScoring(id) {
+  currentMatchId = id;
+  const m = state.matches[id];
+  if (!m) return;
+  scoreModal.classList.add('show');
+  scoreMatchTitle.innerText = `${SPORT_LABEL[m.sport]} — ${m.teamA} vs ${m.teamB}`;
+  matchDuration.value = m.duration || '40:00'; // Default match duration (editable)
+  periodTimer.value = m.periodDuration || '10:00'; // Default period duration (editable)
+  teamAName.innerText = m.teamA;
+  teamBName.innerText = m.teamB;
+  teamAScore.innerText = m.scoreA;
+  teamBScore.innerText = m.scoreB;
+  currentPeriodIndex = m.currentPeriod || 0;
+  updatePeriodDisplay(m);
+  buildScoreButtons(m.sport);
+  updateStartPauseButton(m);
+  scoreStatus.innerText = m.status.toUpperCase();
+  renderEventLog(m);
+}
+
+function buildScoreButtons(sport) {
+  const config = SPORT_SCORING[sport];
+  function mk(side) {
+    const container = side === 'A' ? scoreButtonsA : scoreButtonsB;
+    container.innerHTML = '';
+    config.buttons.forEach((label, i) => {
+      const b = document.createElement('button');
+      b.className = 'btn primary';
+      b.textContent = label;
+      b.addEventListener('click', () => applyScore(side, config.points[i]));
+      container.appendChild(b);
+    });
+  }
+  mk('A');
+  mk('B');
+}
+
+function applyScore(side, points) {
+  const m = state.matches[currentMatchId];
+  if (!m || m.status !== 'live') return;
+  if (side === 'A') {
+    m.scoreA += points;
+    m.events.push({ t: 'score', side, points, period: currentPeriodIndex });
+  } else {
+    m.scoreB += points;
+    m.events.push({ t: 'score', side, points, period: currentPeriodIndex });
+  }
+  teamAScore.innerText = m.scoreA;
+  teamBScore.innerText = m.scoreB;
+  renderEventLog(m);
+  // Update in Firestore
+  db.collection('matches').doc(currentMatchId).update(m);
+  saveState();
+  renderLive();
+  renderEvents();
+  renderScoring();
+}
+
+btnUndo.addEventListener('click', () => {
+  const m = state.matches[currentMatchId];
+  if (!m || !m.events.length) return;
+  const ev = m.events.pop();
+  if (ev.t === 'score') {
+    if (ev.side === 'A') m.scoreA -= ev.points;
+    else m.scoreB -= ev.points;
+  }
+  teamAScore.innerText = m.scoreA;
+  teamBScore.innerText = m.scoreB;
+  renderEventLog(m);
+  // Update in Firestore
+  db.collection('matches').doc(currentMatchId).update(m);
+  saveState();
+  renderLive();
+  renderEvents();
+  renderScoring();
+});
+
+function updatePeriodDisplay(m) {
+  const labels = PERIOD_LABELS[m.sport] || ['Period 1'];
+  currentPeriod.innerText = labels[currentPeriodIndex] || 'Finished';
+}
+
+btnNextPeriod.addEventListener('click', () => {
+  const m = state.matches[currentMatchId];
+  if (!m) return;
+  const maxPeriods = PERIOD_LABELS[m.sport]?.length || 1;
+  if (currentPeriodIndex < maxPeriods - 1) {
+    currentPeriodIndex++;
+    m.currentPeriod = currentPeriodIndex;
+    updatePeriodDisplay(m);
+    // Reset period timer for next period
+    periodTimer.value = m.periodDuration || '10:00';
+    // Update in Firestore
+    db.collection('matches').doc(currentMatchId).update(m);
+    saveState();
+  }
+});
+
+function tickPeriodTimer(id) {
+  const m = state.matches[id];
+  if (!m) return;
+  const [mm, ss] = (m.periodTimeLeft || '0:00').split(':').map(x => parseInt(x, 10) || 0);
+  let total = mm * 60 + ss;
+  if (total <= 0) {
+    clearInterval(periodTimers[id]);
+    periodTimers[id] = null;
+    // Auto-advance to next period if available
+    const maxPeriods = PERIOD_LABELS[m.sport]?.length || 1;
+    if (currentPeriodIndex < maxPeriods - 1) {
+      btnNextPeriod.click();
+    } else {
+      m.status = 'finished';
+      setLive(m.id, false);
+      scoreStatus.innerText = 'FINISHED';
+    }
+    saveState();
+    renderLive();
+    renderEvents();
+    renderScoring();
+    return;
+  }
+  total -= 1;
+  const m2 = Math.floor(total / 60);
+  const s2 = total % 60;
+  m.periodTimeLeft = `${m2}:${s2.toString().padStart(2, '0')}`;
+  if (currentMatchId === id) {
+    periodTimer.value = m.periodTimeLeft;
+  }
+  saveState();
+}
+
+btnStartPausePeriod.addEventListener('click', () => {
+  const m = state.matches[currentMatchId];
+  if (!m) return;
+  if (m.status === 'scheduled' || m.status === 'paused') {
+    m.periodDuration = periodTimer.value || m.periodDuration || '10:00';
+    m.periodTimeLeft = m.periodDuration;
+    m.status = 'live';
+    setLive(m.id, true);
+    periodTimers[m.id] = setInterval(() => tickPeriodTimer(m.id), 1000);
+  } else if (m.status === 'live') {
+    m.status = 'paused';
+    clearInterval(periodTimers[m.id]);
+    periodTimers[m.id] = null;
+  }
+  updateStartPauseButton(m);
+  scoreStatus.innerText = m.status.toUpperCase();
+  // Update in Firestore
+  db.collection('matches').doc(currentMatchId).update(m);
+  saveState();
+  renderLive();
+  renderScoring();
+  renderEvents();
+});
+
+btnFinish.addEventListener('click', () => {
+  const m = state.matches[currentMatchId];
+  if (!m) return;
+  clearInterval(periodTimers[m.id]);
+  periodTimers[m.id] = null;
+  m.status = 'finished';
+  setLive(m.id, false);
+  scoreStatus.innerText = 'FINISHED';
+  updateStartPauseButton(m);
+  // Update in Firestore
+  db.collection('matches').doc(currentMatchId).update(m);
+  saveState();
+  renderLive();
+  renderEvents();
+  renderScoring();
+});
+
+btnReset.addEventListener('click', () => {
+  const m = state.matches[currentMatchId];
+  if (!m) return;
+  m.scoreA = 0;
+  m.scoreB = 0;
+  m.events = [];
+  m.status = 'scheduled';
+  m.currentPeriod = 0;
+  currentPeriodIndex = 0;
+  updatePeriodDisplay(m);
+  teamAScore.innerText = 0;
+  teamBScore.innerText = 0;
+  renderEventLog(m);
+  // Update in Firestore
+  db.collection('matches').doc(currentMatchId).update(m);
+  saveState();
+  renderLive();
+  renderEvents();
+  renderScoring();
+});
+
+function renderEventLog(m) {
+  eventLog.innerHTML = m.events.map(ev => `${ev.period ? PERIOD_LABELS[m.sport][ev.period] + ': ' : ''}${ev.side} scored ${ev.points} (${ev.t})`).join('<br>') || 'No events yet.';
+}
+
+function updateStartPauseButton(m) {
+  btnStartPausePeriod.textContent = (m.status === 'live') ? 'Pause Period' : 'Start Period';
+}
+
+// Ensure modal closes properly
+scoreClose.addEventListener('click', () => {
+  scoreModal.classList.remove('show');
+  currentMatchId = null;
+});
+
+/* ---------- Tour Functionality ---------- */
+let currentTourStep = 0;
+const tourSteps = [
+  {
+    title: "Welcome to Gurukul Olympics 2025",
+    text: "Jai Swaminarayan! Welcome to the official Gurukul Olympics 2025 website. This is the Home tab where you can see an overview of the event.",
+    element: "#home",
+    position: "center"
+  },
+  {
+    title: "Events Tab",
+    text: "Click here to view all sports events, brackets, and match schedules. You can explore different sports and age groups.",
+    element: ".nav button[data-tab='events']",
+    position: "right"
+  },
+  {
+    title: "Live Matches",
+    text: "Check out live matches happening right now across all venues. Real-time scores and updates are available here.",
+    element: ".nav button[data-tab='live']",
+    position: "right"
+  },
+  {
+    title: "Scoring System",
+    text: "Manage and update scores for ongoing matches. Start matches, track periods, and record points in real-time.",
+    element: ".nav button[data-tab='scoring']",
+    position: "right"
+  },
+  {
+    title: "Add Matches",
+    text: "Create new matches for different sports and rounds. Set up brackets and tournament structures.",
+    element: ".nav button[data-tab='addmatches']",
+    position: "right"
+  },
+  {
+    title: "About Us",
+    text: "Learn more about Gurukul Olympics 2025 and our mission to bring sports spirit to Hyderabad.",
+    element: ".nav button[data-tab='about']",
+    position: "right"
+  },
+  {
+    title: "Tour Complete!",
+    text: "You're all set! Explore the features and enjoy the Gurukul Olympics 2025 experience. Jai Swaminarayan!",
+    element: null,
+    position: "center"
+  }
+];
+
+function startTour() {
+  currentTourStep = 0;
+  showTourStep();
+}
+
+function showTourStep() {
+  const step = tourSteps[currentTourStep];
+  const overlay = document.getElementById('tourOverlay');
+  const highlight = document.getElementById('tourHighlight');
+  const modal = document.getElementById('tourModal');
+  const title = document.getElementById('tourTitle');
+  const text = document.getElementById('tourText');
+  const nextBtn = document.getElementById('tourNext');
+
+  title.textContent = step.title;
+  text.textContent = step.text;
+
+  if (step.element) {
+    const targetElement = document.querySelector(step.element);
+    if (targetElement) {
+      const rect = targetElement.getBoundingClientRect();
+      highlight.style.display = 'block';
+      highlight.style.top = rect.top - 5 + 'px';
+      highlight.style.left = rect.left - 5 + 'px';
+      highlight.style.width = rect.width + 10 + 'px';
+      highlight.style.height = rect.height + 10 + 'px';
+
+      // Scroll element into view
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      highlight.style.display = 'none';
+    }
+  } else {
+    highlight.style.display = 'none';
+  }
+
+  // Update button text
+  if (currentTourStep === tourSteps.length - 1) {
+    nextBtn.textContent = 'Finish';
+  } else {
+    nextBtn.textContent = 'Next';
+  }
+
+  overlay.style.display = 'flex';
+}
+
+function nextTourStep() {
+  currentTourStep++;
+  if (currentTourStep >= tourSteps.length) {
+    endTour();
+  } else {
+    showTourStep();
+  }
+}
+
+function endTour() {
+  document.getElementById('tourOverlay').style.display = 'none';
+  // Show the regular guide widget
+  setTimeout(() => showGuide(), 500);
+}
+
+function showGuide() {
+  document.getElementById('guide').style.display = 'block';
+}
+
+// Event listeners for tour
+document.getElementById('guideNext').addEventListener('click', startTour);
+document.getElementById('guideClose').addEventListener('click', () => {
+  document.getElementById('guide').style.display = 'none';
+});
+
+document.getElementById('tourNext').addEventListener('click', nextTourStep);
+document.getElementById('tourSkip').addEventListener('click', endTour);
+</script>
+<script>
+/* Scoring Hub & Full-Page Scoring Manager (multi-sport) */
+
+(function(){
+  // Sample matches (mock data)
+  const SAMPLE_MATCHES = [
+    { id:'m_f_1', sport:'football', sportLabel:'Football', teamA:'Gurukul Hyderabad', teamB:'Gurukul Mumbai', scoreA:0, scoreB:0, status:'scheduled', venue:'Main Stadium', time:'12:00', round:'Semi-Final' },
+    { id:'m_f_2', sport:'football', sportLabel:'Football', teamA:'Gurukul Pune', teamB:'Gurukul Delhi', scoreA:0, scoreB:0, status:'scheduled', venue:'East Ground', time:'13:30', round:'Quarter-Final' },
+    { id:'m_b_1', sport:'basketball', sportLabel:'Basketball', teamA:'Zenith', teamB:'Orion', scoreA:18, scoreB:15, status:'live', venue:'Indoor Court', time:'Q3', round:'Quarter-Final' },
+    { id:'m_v_1', sport:'volleyball', sportLabel:'Volleyball', teamA:'Spikers', teamB:'Blockers', scoreA:1, scoreB:0, status:'scheduled', venue:'Hall 2', time:'14:00', round:'Group' },
+    { id:'m_k_1', sport:'kabaddi', sportLabel:'Kabaddi', teamA:'Raiders', teamB:'Tigers', scoreA:0, scoreB:0, status:'scheduled', venue:'Kabaddi Arena', time:'15:00', round:'Group' }
+  ];
+
+  // Local state
+  window._scoringState = window._scoringState || { matches: {}, currentMatchId: null };
+
+  // Initialize matches into state if empty
+  SAMPLE_MATCHES.forEach(m => { if(!window._scoringState.matches[m.id]) window._scoringState.matches[m.id] = Object.assign({}, m); });
+
+  const scoringListEl = document.getElementById('scoringList');
+  const scRefresh = document.getElementById('scRefresh');
+  const scStartBtn = document.getElementById('scStartBtn');
+  const scPauseBtn = document.getElementById('scPauseBtn');
+  const scEndBtn = document.getElementById('scEndBtn');
+  const scSaveBtn = document.getElementById('scSaveBtn');
+  const scBackBtn = document.getElementById('scBackBtn');
+  const scoringView = document.getElementById('scoring-view');
+  const scoringHeaderSport = document.getElementById('scSportLabel');
+  const scoringVenue = document.getElementById('scVenue');
+  const scMatchRound = document.getElementById('scMatchRound');
+  const scMatchTime = document.getElementById('scMatchTime');
+  const scTeamAName = document.getElementById('scTeamAName');
+  const scTeamBName = document.getElementById('scTeamBName');
+  const scTeamAInfo = document.getElementById('scTeamAInfo');
+  const scTeamBInfo = document.getElementById('scTeamBInfo');
+  const scScoreDisplay = document.getElementById('scScoreDisplay');
+  const scStatus = document.getElementById('scStatus');
+  const sportControls = document.getElementById('sportControls');
+  const eventTimeline = document.getElementById('eventTimeline');
+  const timelineClock = document.getElementById('timelineClock');
+
+  // helpers
+  function formatTime() {
+    const d = new Date();
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  }
+  function renderScoringList(){
+    // group by sport
+    const groups = {};
+    Object.values(window._scoringState.matches).forEach(m=>{
+      if(!groups[m.sport]) groups[m.sport] = [];
+      groups[m.sport].push(m);
+    });
+    let html = '';
+    for(const sport in groups){
+      html += `<div style="margin-top:12px"><h3 style="margin-bottom:8px">${groups[sport][0].sportLabel}</h3>`;
+      groups[sport].forEach(m=>{
+        html += `<div class="card match-card" style="display:flex;justify-content:space-between;align-items:center;padding:12px">
+          <div>
+            <div style="font-weight:900">${m.teamA} vs ${m.teamB}</div>
+            <div style="opacity:0.75;font-size:13px">${m.venue} · ${m.round} · ${m.time}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <div style="font-weight:900">${m.scoreA} - ${m.scoreB}</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" data-action="open" data-id="${m.id}">Open</button>
+              <button class="btn primary" data-action="start" data-id="${m.id}">${m.status==='live'?'Resume':'Start Scoring'}</button>
+            </div>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+    scoringListEl.innerHTML = html;
+    // attach listeners
+    scoringListEl.querySelectorAll('button[data-action="open"]').forEach(b=> b.addEventListener('click', (e)=> {
+      const id = e.currentTarget.dataset.id;
+      openScoringView(id);
+    }));
+    scoringListEl.querySelectorAll('button[data-action="start"]').forEach(b=> b.addEventListener('click', (e)=> {
+      const id = e.currentTarget.dataset.id;
+      openScoringView(id, true); // start immediately
+    }));
+  }
+
+  function openScoringView(matchId, autoStart){
+    const m = window._scoringState.matches[matchId];
+    if(!m) return;
+    window._scoringState.currentMatchId = matchId;
+    // populate header
+    scoringHeaderSport.innerText = m.sportLabel || m.sport;
+    scoringVenue.innerText = m.venue || '';
+    scMatchRound.innerText = m.round || '';
+    scMatchTime.innerText = m.time || '';
+    scTeamAName.innerText = m.teamA;
+    scTeamBName.innerText = m.teamB;
+    scTeamAInfo.innerText = ''; scTeamBInfo.innerText = '';
+    scScoreDisplay.innerText = `${m.scoreA} - ${m.scoreB}`;
+    scStatus.innerText = (m.status||'scheduled').toUpperCase();
+    // show scoring view
+    scoringView.style.display = 'block';
+    // hide main scoring list to simulate full-page view
+    scoringListEl.style.display = 'none';
+    document.getElementById('scoringControls').style.display = 'none';
+    // show appropriate start/pause/end buttons
+    if(m.status==='live'){
+      scStartBtn.style.display = 'none';
+      scPauseBtn.style.display = 'inline-flex';
+      scEndBtn.style.display = 'inline-flex';
+    } else {
+      scStartBtn.style.display = 'inline-flex';
+      scPauseBtn.style.display = 'none';
+      scEndBtn.style.display = 'none';
+    }
+    // reset timeline and render existing events if any
+    if(!m.events) m.events = [];
+    renderTimeline(m);
+    // render sport controls
+    renderSportControls(m);
+    if(autoStart && m.status !== 'live') {
+      startMatch(m.id);
+    }
+  }
+
+  function backToScoringHub(){
+    scoringView.style.display = 'none';
+    scoringListEl.style.display = 'block';
+    document.getElementById('scoringControls').style.display = 'flex';
+    window._scoringState.currentMatchId = null;
+  }
+
+  scBackBtn.addEventListener('click', backToScoringHub);
+
+  // Start / Pause / End actions
+  function startMatch(id){
+    const m = window._scoringState.matches[id];
+    if(!m) return;
+    m.status = 'live';
+    if(!m.events) m.events = [];
+    m.startedAt = m.startedAt || new Date().toISOString();
+    saveState();
+    scStartBtn.style.display = 'none';
+    scPauseBtn.style.display = 'inline-flex';
+    scEndBtn.style.display = 'inline-flex';
+    scStatus.innerText = 'LIVE';
+    renderScoringList();
+  }
+
+  function pauseMatch(id){
+    const m = window._scoringState.matches[id];
+    if(!m) return;
+    m.status = 'paused';
+    saveState();
+    scStartBtn.style.display = 'inline-flex';
+    scPauseBtn.style.display = 'none';
+    scStatus.innerText = 'PAUSED';
+    renderScoringList();
+  }
+
+  function endMatch(id){
+    const m = window._scoringState.matches[id];
+    if(!m) return;
+    m.status = 'finished';
+    m.finishedAt = new Date().toISOString();
+    saveState();
+    scStatus.innerText = 'FINISHED';
+    scEndBtn.style.display = 'none';
+    scPauseBtn.style.display = 'none';
+    scStartBtn.style.display = 'inline-flex';
+    renderScoringList();
+  }
+
+  scStartBtn.addEventListener('click', ()=> {
+    const id = window._scoringState.currentMatchId;
+    startMatch(id);
+  });
+  scPauseBtn.addEventListener('click', ()=> {
+    const id = window._scoringState.currentMatchId;
+    pauseMatch(id);
+  });
+  scEndBtn.addEventListener('click', ()=> {
+    const id = window._scoringState.currentMatchId;
+    if(confirm('End match and mark as finished?')) endMatch(id);
+  });
+  scSaveBtn.addEventListener('click', ()=> {
+    saveState();
+    alert('Progress saved locally.');
+  });
+
+  function saveState(){
+    try{
+      localStorage.setItem('go_scoring_state', JSON.stringify(window._scoringState));
+    }catch(e){ console.warn(e); }
+  }
+  function loadState(){
+    try{
+      const s = localStorage.getItem('go_scoring_state');
+      if(s) window._scoringState = JSON.parse(s);
+    }catch(e){ console.warn(e); }
+  }
+  // load saved if available (merge)
+  loadState();
+  // merge sample matches into state (keeping saved values)
+  SAMPLE_MATCHES.forEach(m => { if(!window._scoringState.matches[m.id]) window._scoringState.matches[m.id] = m; });
+
+  // Sport specific control builders and scoring actions
+  function renderSportControls(m){
+    sportControls.innerHTML = '';
+    if(m.sport === 'football'){
+      sportControls.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" data-action="goalA">Goal A</button>
+          <button class="btn primary" data-action="goalB">Goal B</button>
+          <button class="btn" data-action="yellowA">Yellow A</button>
+          <button class="btn" data-action="yellowB">Yellow B</button>
+          <button class="btn danger" data-action="redA">Red A</button>
+          <button class="btn danger" data-action="redB">Red B</button>
+        </div>
+      `;
+    } else if(m.sport === 'basketball'){
+      sportControls.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" data-action="b1A">+1 A</button>
+          <button class="btn primary" data-action="b2A">+2 A</button>
+          <button class="btn primary" data-action="b3A">+3 A</button>
+          <button class="btn primary" data-action="b1B">+1 B</button>
+          <button class="btn primary" data-action="b2B">+2 B</button>
+          <button class="btn primary" data-action="b3B">+3 B</button>
+        </div>
+      `;
+    } else if(m.sport === 'volleyball'){
+      sportControls.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" data-action="volA">Point A</button>
+          <button class="btn primary" data-action="volB">Point B</button>
+          <button class="btn" data-action="nextSet">Next Set</button>
+        </div>
+      `;
+    } else if(m.sport === 'kabaddi'){
+      sportControls.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" data-action="raidA">Raid Point A</button>
+          <button class="btn primary" data-action="raidB">Raid Point B</button>
+          <button class="btn" data-action="bonusA">Bonus A</button>
+          <button class="btn" data-action="bonusB">Bonus B</button>
+        </div>
+      `;
+    } else {
+      sportControls.innerHTML = '<div style="opacity:0.8">No specialized controls for this sport.</div>';
+    }
+    // attach action listeners
+    sportControls.querySelectorAll('button[data-action]').forEach(btn => {
+      btn.addEventListener('click', (e)=> {
+        const act = e.currentTarget.dataset.action;
+        handleSportAction(m.id, act);
+      });
+    });
+  }
+
+  function pushEvent(matchId, ev){
+    const m = window._scoringState.matches[matchId];
+    if(!m) return;
+    m.events = m.events || [];
+    m.events.unshift(Object.assign({ t: new Date().toISOString() }, ev));
+    saveState();
+    renderTimeline(m);
+    // update score display
+    scScoreDisplay.innerText = `${m.scoreA} - ${m.scoreB}`;
+    renderScoringList();
+  }
+
+  function renderTimeline(m){
+    eventTimeline.innerHTML = '';
+    if(!m.events || !m.events.length){ eventTimeline.innerHTML = '<div style="opacity:0.8">No events yet.</div>'; return; }
+    m.events.forEach(ev=>{
+      const time = new Date(ev.t);
+      const hh = time.getHours().toString().padStart(2,'0');
+      const mm = time.getMinutes().toString().padStart(2,'0');
+      const ts = hh + ':' + mm;
+      const el = document.createElement('div');
+      el.style.padding = '8px';
+      el.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+      el.innerHTML = `<div style="font-weight:800">${ts} · ${ev.type}</div><div style="opacity:0.8;margin-top:6px">${ev.desc || ''}</div>`;
+      eventTimeline.appendChild(el);
+    });
+  }
+
+  function handleSportAction(matchId, action){
+    const m = window._scoringState.matches[matchId];
+    if(!m) return;
+    switch(action){
+      // Football actions
+      case 'goalA': m.scoreA += 1; pushEvent(matchId, { type:'Goal', desc: m.teamA + ' scored', team:'A' }); break;
+      case 'goalB': m.scoreB += 1; pushEvent(matchId, { type:'Goal', desc: m.teamB + ' scored', team:'B' }); break;
+      case 'yellowA': pushEvent(matchId, { type:'Yellow Card', desc: m.teamA + ' received yellow' }); break;
+      case 'yellowB': pushEvent(matchId, { type:'Yellow Card', desc: m.teamB + ' received yellow' }); break;
+      case 'redA': pushEvent(matchId, { type:'Red Card', desc: m.teamA + ' received red' }); break;
+      case 'redB': pushEvent(matchId, { type:'Red Card', desc: m.teamB + ' received red' }); break;
+      // Basketball
+      case 'b1A': m.scoreA += 1; pushEvent(matchId, { type:'+1', desc: m.teamA + ' +1' }); break;
+      case 'b2A': m.scoreA += 2; pushEvent(matchId, { type:'+2', desc: m.teamA + ' +2' }); break;
+      case 'b3A': m.scoreA += 3; pushEvent(matchId, { type:'+3', desc: m.teamA + ' +3' }); break;
+      case 'b1B': m.scoreB += 1; pushEvent(matchId, { type:'+1', desc: m.teamB + ' +1' }); break;
+      case 'b2B': m.scoreB += 2; pushEvent(matchId, { type:'+2', desc: m.teamB + ' +2' }); break;
+      case 'b3B': m.scoreB += 3; pushEvent(matchId, { type:'+3', desc: m.teamB + ' +3' }); break;
+      // Volleyball
+      case 'volA': m.scoreA += 1; pushEvent(matchId, { type:'Point', desc: m.teamA + ' scored a point' }); break;
+      case 'volB': m.scoreB += 1; pushEvent(matchId, { type:'Point', desc: m.teamB + ' scored a point' }); break;
+      case 'nextSet': pushEvent(matchId, { type:'Next Set', desc: 'Move to next set' }); break;
+      // Kabaddi
+      case 'raidA': m.scoreA += 1; pushEvent(matchId, { type:'Raid', desc: m.teamA + ' raid point' }); break;
+      case 'raidB': m.scoreB += 1; pushEvent(matchId, { type:'Raid', desc: m.teamB + ' raid point' }); break;
+      case 'bonusA': m.scoreA += 2; pushEvent(matchId, { type:'Bonus', desc: m.teamA + ' bonus points' }); break;
+      case 'bonusB': m.scoreB += 2; pushEvent(matchId, { type:'Bonus', desc: m.teamB + ' bonus points' }); break;
+      default: pushEvent(matchId, { type:'Action', desc: 'Unknown action: ' + action }); break;
+    }
+    saveState();
+    // update header displays
+    const cur = window._scoringState.matches[matchId];
+    scScoreDisplay.innerText = `${cur.scoreA} - ${cur.scoreB}`;
+    scStatus.innerText = (cur.status||'scheduled').toUpperCase();
+  }
+
+  // Attach refresh
+  scRefresh.addEventListener('click', ()=> renderScoringList());
+
+  // Initialize rendering
+  renderScoringList();
+
+  // Ensure that when the Scoring tab is shown, we render the list (integrates with existing showTab)
+  window.renderScoringPage = function(){ // override existing if present
+    document.querySelectorAll('.tab').forEach(t=> t.style.display='none');
+    const el = document.getElementById('scoring');
+    if(el) el.style.display = 'block';
+    // hide scoring-view in case it was visible
+    document.getElementById('scoring-view').style.display = 'none';
+    document.getElementById('scoringList').style.display = 'block';
+    document.getElementById('scoringControls').style.display = 'flex';
+    renderScoringList();
+  };
+
+  // Make openScoringView globally accessible for debugging
+  window.openScoringView = openScoringView;
+  window.backToScoringHub = backToScoringHub;
+
+})(); // end IIFE
+</script></body>
+</html>
