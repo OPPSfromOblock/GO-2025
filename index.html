@@ -6,8 +6,7 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>GO 2025 - Thunder Edition (Gurukul Olympics Prototype)</title>
 <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js">window.addEventListener('beforeunload',()=>auth.signOut());
-</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <style>
@@ -465,6 +464,11 @@
       <div style="height:8px"></div>
       <button id="regBtn" class="btn primary" style="width:100%">Register</button>
       <div id="regMsg" style="margin-top:8px;color:#8f8;display:none"></div>
+      <div style="height:8px"></div>
+      <button id="regGoogleBtn" class="btn" style="width:100%;background:linear-gradient(90deg,#fff,#eee);color:#111;font-weight:700;margin-top:6px">
+        <span style="margin-right:8px">🔵</span> Sign in with Google
+      </button>
+      <div id="regGoogleMsg" style="margin-top:8px;color:#8f8;display:none"></div>
     </div>
 
     <div id="loginForm" style="display:none">
@@ -473,6 +477,11 @@
       <div style="height:8px"></div>
       <button id="loginBtn" class="btn primary" style="width:100%">Send Sign-in Link</button>
       <div id="loginMsg" style="margin-top:8px;color:#8f8;display:none"></div>
+      <div style="height:8px"></div>
+      <button id="loginGoogleBtn" class="btn primary" style="width:100%;display:block;margin-top:6px;background:linear-gradient(90deg,#4285F4,#357ae8);border:0;color:#fff;font-weight:900">
+        Sign in with Google
+      </button>
+      <div id="loginGoogleMsg" style="margin-top:8px;color:#8f8;display:none"></div>
     </div>
 
     <div id="authNote" style="margin-top:10px;color:#ddd;font-size:13px;opacity:0.95">
@@ -1042,7 +1051,7 @@ function formatMatchBadge(m){
     if(!loader) { if(pw) pw.style.display='flex'; return; }
     loader.style.transition = 'opacity 0.9s ease';
     loader.style.opacity = '0';
-    setTimeout(() => { try{ loader.remove(); }catch(e){} if(pw) pw.style.display='flex'; if(appEl) appEl.style.display='block'; }, 900);
+    setTimeout(() => { try{ loader.remove(); }catch(e){} if(pw) pw.style.display='flex'; if(appEl) appEl.style.display='none'; }, 900);
   }
 
   if(!loader || !img){ setTimeout(()=>{ if(pw) pw.style.display='flex'; }, 500); return; }
@@ -1144,6 +1153,46 @@ loginBtn.addEventListener('click', async ()=>{
     loginMsg.style.display='block'; loginMsg.style.color='#f88'; loginMsg.innerText='Failed to send sign-in link. See console.';
   }
 });
+
+
+// --- Google Sign-In handlers (added) ---
+const regGoogleBtn = document.getElementById('regGoogleBtn');
+const loginGoogleBtn = document.getElementById('loginGoogleBtn');
+
+async function handleGoogleSignIn(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try{
+    const result = await auth.signInWithPopup(provider);
+    const user = result.user;
+    if(user && user.email){
+      const email = (user.email||'').toLowerCase();
+      try{
+        // If not already registered, create a registeredUsers record so they can use app features
+        const docRef = db.collection('registeredUsers').doc(encodeURIComponent(email));
+        const doc = await docRef.get();
+        if(!doc.exists){
+          await docRef.set({ email: email, createdAt: new Date().toISOString(), provider: 'google' });
+        }
+      }catch(e){
+        console.warn('Failed to write registeredUsers record for Google sign-in', e);
+      }
+      // Hide overlay and show app
+      if(authOverlay) authOverlay.style.display = 'none';
+      if(app) app.style.display = 'block';
+      try{ document.getElementById('guide').style.display = 'none'; }catch(e){}
+      setTimeout(()=> startTour(), 700);
+    }
+  }catch(err){
+    console.error('Google sign-in failed', err);
+    try{ if(loginGoogleMsg) { loginGoogleMsg.style.display='block'; loginGoogleMsg.style.color='#f88'; loginGoogleMsg.innerText='Google sign-in failed. See console.'; } }catch(e){}
+    alert('Google sign-in failed. See console.');
+  }
+}
+
+if(regGoogleBtn) regGoogleBtn.addEventListener('click', handleGoogleSignIn);
+if(loginGoogleBtn) loginGoogleBtn.addEventListener('click', handleGoogleSignIn);
+// --- end Google Sign-In handlers ---
+
 
 // Handle email link sign-in when page loads with an email link
 if (auth.isSignInWithEmailLink && auth.isSignInWithEmailLink(window.location.href)) {
