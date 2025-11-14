@@ -6,9 +6,342 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>GO 2025 - Thunder Edition (Gurukul Olympics Prototype)</title>
 <!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js">
+// --- WHITELIST LOGIC ---
+
+async function isWhitelisted(email){
+  const doc = await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+  return doc.exists;
+}
+
+async function addToPending(email){
+  await db.collection('pendingUsers').doc(encodeURIComponent(email)).set({
+    email: email,
+    requestedAt: new Date().toISOString()
+  });
+}
+
+async function loadUsersTab(){
+  const pC=document.getElementById('pendingList');
+  const wC=document.getElementById('whitelistList');
+  pC.innerHTML='Loading...'; wC.innerHTML='Loading...';
+
+  const pendingSnap=await db.collection('pendingUsers').get();
+  const whitelistSnap=await db.collection('registeredUsers').get();
+
+  pC.innerHTML = pendingSnap.empty ? '<i>No pending users</i>' :
+    Array.from(pendingSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#300;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn primary' onclick='approveUser("${doc.id}")'>Approve</button>
+        <button class='btn danger' onclick='rejectUser("${doc.id}")'>Reject</button>
+      </div>`).join('');
+
+  wC.innerHTML = whitelistSnap.empty ? '<i>No whitelisted users</i>' :
+    Array.from(whitelistSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#030;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn danger' onclick='removeWhitelist("${doc.id}")'>Remove</button>
+      </div>`).join('');
+}
+
+async function approveUser(id){
+  const doc=await db.collection('pendingUsers').doc(id).get();
+  if(doc.exists){
+    const email=doc.data().email;
+    await db.collection('registeredUsers').doc(id).set({
+      email: email,
+      approvedAt: new Date().toISOString()
+    });
+    await db.collection('pendingUsers').doc(id).delete();
+  }
+  loadUsersTab();
+}
+
+async function rejectUser(id){
+  await db.collection('pendingUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+async function removeWhitelist(id){
+  await db.collection('registeredUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+// Override register: put user into pending list instead of whitelist
+regBtn.addEventListener('click', async ()=>{
+  const e=(regEmail.value||'').trim().toLowerCase();
+  const c=(regEmailConfirm.value||'').trim().toLowerCase();
+  regMsg.style.display='none';
+  if(!e||!c||e!==c){
+    regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Enter matching emails.';
+    return;
+  }
+  await addToPending(e);
+  regMsg.style.display='block'; regMsg.style.color='#8f8';
+  regMsg.innerText='Your request is in queue. Wait for approval.';
+});
+
+// Override login: block if not whitelisted
+loginBtn.addEventListener('click', async ()=>{
+  const e=(loginEmail.value||'').trim().toLowerCase();
+  loginMsg.style.display='none';
+  if(!e){ loginMsg.style.display='block';loginMsg.style.color='#f88';loginMsg.innerText='Enter email.';return;}
+
+  const wl=await isWhitelisted(e);
+  if(!wl){
+    loginMsg.style.display='block';loginMsg.style.color='#f88';
+    loginMsg.innerText='Not whitelisted. Request pending or not submitted.';
+    await addToPending(e);
+    return;
+  }
+});
+
+// Override Google login
+async function handleGoogleSignIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  const result=await auth.signInWithPopup(provider);
+  const email=result.user.email.toLowerCase();
+  const wl=await isWhitelisted(email);
+  if(!wl){
+    alert('Your account is not whitelisted. Request added.');
+    await addToPending(email);
+    auth.signOut();
+    return;
+  }
+  authOverlay.style.display='none';
+  app.style.display='block';
+  setTimeout(()=>startTour(),700);
+}
+
+// Users tab load
+document.querySelector('button[data-tab="users"]').addEventListener('click', ()=>loadUsersTab());
+
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js">
+// --- WHITELIST LOGIC ---
+
+async function isWhitelisted(email){
+  const doc = await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+  return doc.exists;
+}
+
+async function addToPending(email){
+  await db.collection('pendingUsers').doc(encodeURIComponent(email)).set({
+    email: email,
+    requestedAt: new Date().toISOString()
+  });
+}
+
+async function loadUsersTab(){
+  const pC=document.getElementById('pendingList');
+  const wC=document.getElementById('whitelistList');
+  pC.innerHTML='Loading...'; wC.innerHTML='Loading...';
+
+  const pendingSnap=await db.collection('pendingUsers').get();
+  const whitelistSnap=await db.collection('registeredUsers').get();
+
+  pC.innerHTML = pendingSnap.empty ? '<i>No pending users</i>' :
+    Array.from(pendingSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#300;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn primary' onclick='approveUser("${doc.id}")'>Approve</button>
+        <button class='btn danger' onclick='rejectUser("${doc.id}")'>Reject</button>
+      </div>`).join('');
+
+  wC.innerHTML = whitelistSnap.empty ? '<i>No whitelisted users</i>' :
+    Array.from(whitelistSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#030;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn danger' onclick='removeWhitelist("${doc.id}")'>Remove</button>
+      </div>`).join('');
+}
+
+async function approveUser(id){
+  const doc=await db.collection('pendingUsers').doc(id).get();
+  if(doc.exists){
+    const email=doc.data().email;
+    await db.collection('registeredUsers').doc(id).set({
+      email: email,
+      approvedAt: new Date().toISOString()
+    });
+    await db.collection('pendingUsers').doc(id).delete();
+  }
+  loadUsersTab();
+}
+
+async function rejectUser(id){
+  await db.collection('pendingUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+async function removeWhitelist(id){
+  await db.collection('registeredUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+// Override register: put user into pending list instead of whitelist
+regBtn.addEventListener('click', async ()=>{
+  const e=(regEmail.value||'').trim().toLowerCase();
+  const c=(regEmailConfirm.value||'').trim().toLowerCase();
+  regMsg.style.display='none';
+  if(!e||!c||e!==c){
+    regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Enter matching emails.';
+    return;
+  }
+  await addToPending(e);
+  regMsg.style.display='block'; regMsg.style.color='#8f8';
+  regMsg.innerText='Your request is in queue. Wait for approval.';
+});
+
+// Override login: block if not whitelisted
+loginBtn.addEventListener('click', async ()=>{
+  const e=(loginEmail.value||'').trim().toLowerCase();
+  loginMsg.style.display='none';
+  if(!e){ loginMsg.style.display='block';loginMsg.style.color='#f88';loginMsg.innerText='Enter email.';return;}
+
+  const wl=await isWhitelisted(e);
+  if(!wl){
+    loginMsg.style.display='block';loginMsg.style.color='#f88';
+    loginMsg.innerText='Not whitelisted. Request pending or not submitted.';
+    await addToPending(e);
+    return;
+  }
+});
+
+// Override Google login
+async function handleGoogleSignIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  const result=await auth.signInWithPopup(provider);
+  const email=result.user.email.toLowerCase();
+  const wl=await isWhitelisted(email);
+  if(!wl){
+    alert('Your account is not whitelisted. Request added.');
+    await addToPending(email);
+    auth.signOut();
+    return;
+  }
+  authOverlay.style.display='none';
+  app.style.display='block';
+  setTimeout(()=>startTour(),700);
+}
+
+// Users tab load
+document.querySelector('button[data-tab="users"]').addEventListener('click', ()=>loadUsersTab());
+
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js">
+// --- WHITELIST LOGIC ---
+
+async function isWhitelisted(email){
+  const doc = await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+  return doc.exists;
+}
+
+async function addToPending(email){
+  await db.collection('pendingUsers').doc(encodeURIComponent(email)).set({
+    email: email,
+    requestedAt: new Date().toISOString()
+  });
+}
+
+async function loadUsersTab(){
+  const pC=document.getElementById('pendingList');
+  const wC=document.getElementById('whitelistList');
+  pC.innerHTML='Loading...'; wC.innerHTML='Loading...';
+
+  const pendingSnap=await db.collection('pendingUsers').get();
+  const whitelistSnap=await db.collection('registeredUsers').get();
+
+  pC.innerHTML = pendingSnap.empty ? '<i>No pending users</i>' :
+    Array.from(pendingSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#300;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn primary' onclick='approveUser("${doc.id}")'>Approve</button>
+        <button class='btn danger' onclick='rejectUser("${doc.id}")'>Reject</button>
+      </div>`).join('');
+
+  wC.innerHTML = whitelistSnap.empty ? '<i>No whitelisted users</i>' :
+    Array.from(whitelistSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#030;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn danger' onclick='removeWhitelist("${doc.id}")'>Remove</button>
+      </div>`).join('');
+}
+
+async function approveUser(id){
+  const doc=await db.collection('pendingUsers').doc(id).get();
+  if(doc.exists){
+    const email=doc.data().email;
+    await db.collection('registeredUsers').doc(id).set({
+      email: email,
+      approvedAt: new Date().toISOString()
+    });
+    await db.collection('pendingUsers').doc(id).delete();
+  }
+  loadUsersTab();
+}
+
+async function rejectUser(id){
+  await db.collection('pendingUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+async function removeWhitelist(id){
+  await db.collection('registeredUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+// Override register: put user into pending list instead of whitelist
+regBtn.addEventListener('click', async ()=>{
+  const e=(regEmail.value||'').trim().toLowerCase();
+  const c=(regEmailConfirm.value||'').trim().toLowerCase();
+  regMsg.style.display='none';
+  if(!e||!c||e!==c){
+    regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Enter matching emails.';
+    return;
+  }
+  await addToPending(e);
+  regMsg.style.display='block'; regMsg.style.color='#8f8';
+  regMsg.innerText='Your request is in queue. Wait for approval.';
+});
+
+// Override login: block if not whitelisted
+loginBtn.addEventListener('click', async ()=>{
+  const e=(loginEmail.value||'').trim().toLowerCase();
+  loginMsg.style.display='none';
+  if(!e){ loginMsg.style.display='block';loginMsg.style.color='#f88';loginMsg.innerText='Enter email.';return;}
+
+  const wl=await isWhitelisted(e);
+  if(!wl){
+    loginMsg.style.display='block';loginMsg.style.color='#f88';
+    loginMsg.innerText='Not whitelisted. Request pending or not submitted.';
+    await addToPending(e);
+    return;
+  }
+});
+
+// Override Google login
+async function handleGoogleSignIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  const result=await auth.signInWithPopup(provider);
+  const email=result.user.email.toLowerCase();
+  const wl=await isWhitelisted(email);
+  if(!wl){
+    alert('Your account is not whitelisted. Request added.');
+    await addToPending(email);
+    auth.signOut();
+    return;
+  }
+  authOverlay.style.display='none';
+  app.style.display='block';
+  setTimeout(()=>startTour(),700);
+}
+
+// Users tab load
+document.querySelector('button[data-tab="users"]').addEventListener('click', ()=>loadUsersTab());
+
+</script>
 <style>
     /* Detailed Scoresheet Modal */
 #detailed-scoresheet {
@@ -508,7 +841,8 @@
 <button data-tab="events">Events</button>
 <button data-tab="live">Live Matches</button>
 <button data-tab="scoring">Scoring</button>
-<button data-tab="addmatches">Add Matches</button>
+<button data-tab="addmatches">
+<button data-tab="users">Users</button>Add Matches</button>
 <button data-tab="about">About Us</button>
 </nav>
 <div class="grow">
@@ -747,6 +1081,14 @@
 <div style="height:12px"></div>
 <h3 style="margin-bottom:6px">Existing R1 Matches</h3>
 <div id="amList"></div>
+</section>
+
+<section class="card tab" id="users" style="display:none">
+  <h2>Users Management</h2>
+  <h3>Pending Users</h3>
+  <div id="pendingList" style="margin-bottom:20px"></div>
+  <h3>Whitelisted Users</h3>
+  <div id="whitelistList"></div>
 </section>
 <!-- About -->
 <section class="card tab" id="about" style="display:none">
@@ -1815,6 +2157,117 @@ document.getElementById('guideClose').addEventListener('click', () => {
 
 document.getElementById('tourNext').addEventListener('click', nextTourStep);
 document.getElementById('tourSkip').addEventListener('click', endTour);
+
+// --- WHITELIST LOGIC ---
+
+async function isWhitelisted(email){
+  const doc = await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+  return doc.exists;
+}
+
+async function addToPending(email){
+  await db.collection('pendingUsers').doc(encodeURIComponent(email)).set({
+    email: email,
+    requestedAt: new Date().toISOString()
+  });
+}
+
+async function loadUsersTab(){
+  const pC=document.getElementById('pendingList');
+  const wC=document.getElementById('whitelistList');
+  pC.innerHTML='Loading...'; wC.innerHTML='Loading...';
+
+  const pendingSnap=await db.collection('pendingUsers').get();
+  const whitelistSnap=await db.collection('registeredUsers').get();
+
+  pC.innerHTML = pendingSnap.empty ? '<i>No pending users</i>' :
+    Array.from(pendingSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#300;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn primary' onclick='approveUser("${doc.id}")'>Approve</button>
+        <button class='btn danger' onclick='rejectUser("${doc.id}")'>Reject</button>
+      </div>`).join('');
+
+  wC.innerHTML = whitelistSnap.empty ? '<i>No whitelisted users</i>' :
+    Array.from(whitelistSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#030;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn danger' onclick='removeWhitelist("${doc.id}")'>Remove</button>
+      </div>`).join('');
+}
+
+async function approveUser(id){
+  const doc=await db.collection('pendingUsers').doc(id).get();
+  if(doc.exists){
+    const email=doc.data().email;
+    await db.collection('registeredUsers').doc(id).set({
+      email: email,
+      approvedAt: new Date().toISOString()
+    });
+    await db.collection('pendingUsers').doc(id).delete();
+  }
+  loadUsersTab();
+}
+
+async function rejectUser(id){
+  await db.collection('pendingUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+async function removeWhitelist(id){
+  await db.collection('registeredUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+// Override register: put user into pending list instead of whitelist
+regBtn.addEventListener('click', async ()=>{
+  const e=(regEmail.value||'').trim().toLowerCase();
+  const c=(regEmailConfirm.value||'').trim().toLowerCase();
+  regMsg.style.display='none';
+  if(!e||!c||e!==c){
+    regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Enter matching emails.';
+    return;
+  }
+  await addToPending(e);
+  regMsg.style.display='block'; regMsg.style.color='#8f8';
+  regMsg.innerText='Your request is in queue. Wait for approval.';
+});
+
+// Override login: block if not whitelisted
+loginBtn.addEventListener('click', async ()=>{
+  const e=(loginEmail.value||'').trim().toLowerCase();
+  loginMsg.style.display='none';
+  if(!e){ loginMsg.style.display='block';loginMsg.style.color='#f88';loginMsg.innerText='Enter email.';return;}
+
+  const wl=await isWhitelisted(e);
+  if(!wl){
+    loginMsg.style.display='block';loginMsg.style.color='#f88';
+    loginMsg.innerText='Not whitelisted. Request pending or not submitted.';
+    await addToPending(e);
+    return;
+  }
+});
+
+// Override Google login
+async function handleGoogleSignIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  const result=await auth.signInWithPopup(provider);
+  const email=result.user.email.toLowerCase();
+  const wl=await isWhitelisted(email);
+  if(!wl){
+    alert('Your account is not whitelisted. Request added.');
+    await addToPending(email);
+    auth.signOut();
+    return;
+  }
+  authOverlay.style.display='none';
+  app.style.display='block';
+  setTimeout(()=>startTour(),700);
+}
+
+// Users tab load
+document.querySelector('button[data-tab="users"]').addEventListener('click', ()=>loadUsersTab());
+
 </script>
 <script>
 /* Scoring Hub & Full-Page Scoring Manager (multi-sport) */
@@ -2162,5 +2615,116 @@ document.getElementById('tourSkip').addEventListener('click', endTour);
   window.backToScoringHub = backToScoringHub;
 
 })(); // end IIFE
+
+// --- WHITELIST LOGIC ---
+
+async function isWhitelisted(email){
+  const doc = await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+  return doc.exists;
+}
+
+async function addToPending(email){
+  await db.collection('pendingUsers').doc(encodeURIComponent(email)).set({
+    email: email,
+    requestedAt: new Date().toISOString()
+  });
+}
+
+async function loadUsersTab(){
+  const pC=document.getElementById('pendingList');
+  const wC=document.getElementById('whitelistList');
+  pC.innerHTML='Loading...'; wC.innerHTML='Loading...';
+
+  const pendingSnap=await db.collection('pendingUsers').get();
+  const whitelistSnap=await db.collection('registeredUsers').get();
+
+  pC.innerHTML = pendingSnap.empty ? '<i>No pending users</i>' :
+    Array.from(pendingSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#300;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn primary' onclick='approveUser("${doc.id}")'>Approve</button>
+        <button class='btn danger' onclick='rejectUser("${doc.id}")'>Reject</button>
+      </div>`).join('');
+
+  wC.innerHTML = whitelistSnap.empty ? '<i>No whitelisted users</i>' :
+    Array.from(whitelistSnap.docs).map(doc=>`
+      <div style='margin:6px 0;padding:8px;background:#030;border-radius:6px'>
+        ${doc.data().email}
+        <button class='btn danger' onclick='removeWhitelist("${doc.id}")'>Remove</button>
+      </div>`).join('');
+}
+
+async function approveUser(id){
+  const doc=await db.collection('pendingUsers').doc(id).get();
+  if(doc.exists){
+    const email=doc.data().email;
+    await db.collection('registeredUsers').doc(id).set({
+      email: email,
+      approvedAt: new Date().toISOString()
+    });
+    await db.collection('pendingUsers').doc(id).delete();
+  }
+  loadUsersTab();
+}
+
+async function rejectUser(id){
+  await db.collection('pendingUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+async function removeWhitelist(id){
+  await db.collection('registeredUsers').doc(id).delete();
+  loadUsersTab();
+}
+
+// Override register: put user into pending list instead of whitelist
+regBtn.addEventListener('click', async ()=>{
+  const e=(regEmail.value||'').trim().toLowerCase();
+  const c=(regEmailConfirm.value||'').trim().toLowerCase();
+  regMsg.style.display='none';
+  if(!e||!c||e!==c){
+    regMsg.style.display='block'; regMsg.style.color='#f88'; regMsg.innerText='Enter matching emails.';
+    return;
+  }
+  await addToPending(e);
+  regMsg.style.display='block'; regMsg.style.color='#8f8';
+  regMsg.innerText='Your request is in queue. Wait for approval.';
+});
+
+// Override login: block if not whitelisted
+loginBtn.addEventListener('click', async ()=>{
+  const e=(loginEmail.value||'').trim().toLowerCase();
+  loginMsg.style.display='none';
+  if(!e){ loginMsg.style.display='block';loginMsg.style.color='#f88';loginMsg.innerText='Enter email.';return;}
+
+  const wl=await isWhitelisted(e);
+  if(!wl){
+    loginMsg.style.display='block';loginMsg.style.color='#f88';
+    loginMsg.innerText='Not whitelisted. Request pending or not submitted.';
+    await addToPending(e);
+    return;
+  }
+});
+
+// Override Google login
+async function handleGoogleSignIn(){
+  const provider=new firebase.auth.GoogleAuthProvider();
+  const result=await auth.signInWithPopup(provider);
+  const email=result.user.email.toLowerCase();
+  const wl=await isWhitelisted(email);
+  if(!wl){
+    alert('Your account is not whitelisted. Request added.');
+    await addToPending(email);
+    auth.signOut();
+    return;
+  }
+  authOverlay.style.display='none';
+  app.style.display='block';
+  setTimeout(()=>startTour(),700);
+}
+
+// Users tab load
+document.querySelector('button[data-tab="users"]').addEventListener('click', ()=>loadUsersTab());
+
 </script></body>
 </html>
