@@ -1563,6 +1563,20 @@ if (auth.isSignInWithEmailLink && auth.isSignInWithEmailLink(window.location.hre
 // Show the overlay by default (the loader code will call showAuthOverlay after finishing)
 showAuthOverlay();
 
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    const email=user.email.toLowerCase();
+    const doc=await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+    if(!doc.exists){
+      await auth.signOut();
+      authOverlay.style.display='flex';
+      alert("Your account is still in queue for approval.");
+      return;
+    }
+  }
+});
+
+
 
 /* Tab navigation with hash + auto-close */
 const tabIds = Array.from(document.querySelectorAll('.tab')).map(t=>t.id);
@@ -2726,5 +2740,28 @@ async function handleGoogleSignIn(){
 // Users tab load
 document.querySelector('button[data-tab="users"]').addEventListener('click', ()=>loadUsersTab());
 
-</script></body>
+</script>
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    const email=user.email.toLowerCase();
+    const doc=await db.collection('registeredUsers').doc(encodeURIComponent(email)).get();
+    if(!doc.exists){
+      await auth.signOut();
+      authOverlay.style.display='flex';
+      app.style.display='none';
+      alert("Your account is still in queue for approval.");
+      return;
+    } else {
+      authOverlay.style.display='none';
+      app.style.display='block';
+      try{ document.getElementById('guide').style.display='none'; }catch(e){}
+      setTimeout(()=> startTour(), 700);
+    }
+  } else {
+    authOverlay.style.display='flex';
+    app.style.display='none';
+  }
+});
+
+</body>
 </html>
